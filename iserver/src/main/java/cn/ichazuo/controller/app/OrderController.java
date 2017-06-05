@@ -5327,6 +5327,8 @@ public class OrderController extends BaseController {
 								List<WebCourseOrder> appOrderList1 = businessService.findCourseAppOrderByEmployeeId1(employee.getId());
 								if(appOrderList1.size()>0){
 									price = "1";
+								}else{
+									price = "199";
 								}
 							}
 						}
