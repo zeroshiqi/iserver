@@ -1,0 +1,173 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>播放地址管理</title>
+<%@include file="/link/link.jsp"%>
+</head>
+<body class="easyui-layout">
+	<div data-options="region:'center',title:'播放地址列表',iconCls:'icon-ok'">
+		<table id="addressid"
+			data-options="toolbar:'#toolbar',loadMsg:'正在加载数据...',">
+			<thead>
+				<tr>
+					<th data-options="field:'id' , hidden:'true'">id</th>
+					<th data-options="field:'addressName',align:'center'" width="150">播放地址名称</th>
+					<th data-options="field:'addressUrl',align:'center'" width="150">播放地址URL</th>
+					<th data-options="field:'addressWebUrl',align:'center'" width="150">Web播放地址URL</th>
+				</tr>
+			</thead>
+		</table>
+		<div id="toolbar" style="padding: 5px; height: auto">
+			<div>
+				<c:forEach items="${buttonList}" var="button">
+					<a href="javascript:void(0);" class="easyui-linkbutton"
+						iconCls="icon-${button.icon}" plain="true"
+						onclick="${button.function}">${button.name}</a>
+				</c:forEach>
+			</div>
+		</div>
+	</div>
+	<!--播放地址窗口 -->
+	<div id="addressWindow" class="easyui-window" title="播放地址信息"
+		data-options="modal:true,minimizable:false,closed:true,iconCls:'icon-edit'"
+		style="width: 400px; height: 320px; padding: 10px;">
+		<div class="easyui-layout" data-options="fit:true">
+			<div data-options="region:'center'" style="padding: 10px;">
+				<form id="form" method="post">
+					<table align="center" width="100%">
+						<tr>
+							<td>播放地址名称：</td>
+							<td><input type="hidden" name="id" id="rid" /> <input
+								id="addressName" name="addressName" class="easyui-validatebox"
+								type="text" data-options="required:false" style="width: 150px;" />
+							</td>
+						</tr>
+						<tr>
+							<td>播放地址代码：</td>
+							<td><input id="addressUrl" name="addressUrl"
+								class="easyui-validatebox" type="text"
+								data-options="required:false" style="width: 150px;" /></td>
+						</tr>
+						<tr>
+							<td>Web播放地址代码：</td>
+							<td><input id="addressWebUrl" name="addressWebUrl"
+								class="easyui-validatebox" type="text"
+								data-options="required:false" style="width: 150px;" /></td>
+						</tr>
+					</table>
+				</form>
+			</div>
+			<div data-options="region:'south',border:false"
+				style="text-align: right; padding: 5px 0 0;">
+				<a href="javascript:void(0)" class="easyui-linkbutton"
+					data-options="iconCls:'icon-save'" onclick="saveAddress()">保存</a> <a
+					href="javascript:void(0)" class="easyui-linkbutton"
+					data-options="iconCls:'icon-cancel'"
+					onclick="$('#addressWindow').window('close')">取消</a>
+			</div>
+		</div>
+	</div>
+</body>
+<script type="text/javascript">
+$(function(){
+	findAddress();
+});
+//打开新增播放地址窗口
+function showaddressWindow(){
+	$('#form').form('clear');
+	$("#addressWindow").window("open");
+}
+//打开修改播放地址窗口
+function editRecord(){
+	record = $("#addressid").datagrid("getSelected");
+	if(record==null){
+		$.messager.alert("系统提示","请选择记录!","warning");
+		return;
+	}
+	$("#rid").val(record.id);
+	$("#addressWebUrl").val(record.addressWebUrl);
+	$("#addressName").val(record.addressName);
+	$("#addressUrl").val(record.addressUrl);
+	$("#addressWindow").window("open");
+}
+//保存播放地址
+function saveAddress(){
+	var name = $("#addressName").val();
+	if(name == ""){
+		$.messager.alert("系统提示","请填写播放地址名称","warning");
+		return;
+	}
+	var code = $("#addressUrl").val();
+	if(code == ""){
+		$.messager.alert("系统提示","请填写播放地址URl","warning");
+		return;
+	}
+	var options ={
+			url:"${app}/admin/json/savePlayAddress",
+			success : function(data) {
+				if(checkData(data)){
+					$("#addressWindow").window('close');
+					findAddress();
+				}
+			}
+		};
+	$("#form").ajaxSubmit(options);		
+	//清除选中行
+	$('#addressid').datagrid('clearSelections');
+}
+//删除播放地址
+function deleteAddress(){
+	var record = $('#addressid').datagrid('getSelected');
+	if(record==null){
+		$.messager.alert("系统提示","请选择记录!","warning");
+		return;
+	}
+	$.messager.confirm('系统提示', '确定要删除吗?', function(r){
+		if (r){
+			$.getJSON("${app}/admin/json/deletePlayAddress?id="+record.id,function(data){
+				if(checkData(data)){
+					findAddress();
+				}
+			});			
+		}
+	});
+	$('#addressid').datagrid('clearSelections');
+}
+//查询播放地址
+function findAddress(){
+	 $('#addressid').datagrid({
+	        height: 'auto',  
+	        nowrap: false,  
+	        striped: true,  
+	        border: true,  
+	        collapsible:false,//是否可折叠的  
+	        fit: true,//自动大小  
+	        url:'${app}/admin/json/findPlayAddressList',  
+	        remoteSort:false, 
+	        idField:'id',  
+	        singleSelect : true,//是否单选  
+			selectOnCheck: true,
+			checkOnSelect: true,
+			fitColumns: true, 
+	        pagination:true,//分页控件  
+	        pageSize:30,//设置分页默认条数
+		    pageList: [30,50,100,150], 
+	        rownumbers:true,//行号  
+	        onLoadError:function(){
+	        	$.messager.alert("系统提示","加载数据失败！","warning");
+			}
+	    });  
+	 	//设置分页控件  
+	    var p = $('#addressid').datagrid('getPager');  
+	    $(p).pagination({  
+	        beforePageText: '第',//页数文本框前显示的汉字  
+	        afterPageText: '页    共 {pages} 页',  
+	        displayMsg: '当前显示 {from} - {to} 条记录   共 {total} 条记录',  
+	    });  
+	    $('#addressid').datagrid('clearSelections');
+}
+</script>
+</html>

@@ -1,0 +1,95 @@
+package cn.ichazuo.model.app;
+
+import cn.ichazuo.commons.base.BaseResult;
+
+/**
+ * @ClassName: WebCourseOrderInfo
+ * @Description: (Web课程订单信息)
+ * @author ZhaoXu
+ * @date 2015年8月31日 下午7:51:33
+ * @version V1.0
+ */
+public class WebCourseOrderInfo extends BaseResult {
+	private static final long serialVersionUID = 1L;
+	private String orderCode; // 订单号
+	private String sign; // 签名
+	private String nonceStr; // 随机字符串
+	private String appid; // appid
+	private String prepayId;	//prepay_id
+	private String apiKey;	//key
+	private String mchId;
+	private String codeUrl;
+	private String beginTime;//开始时间
+
+	public String getMchId() {
+		return mchId;
+	}
+
+	public void setMchId(String mchId) {
+		this.mchId = mchId;
+	}
+
+	public String getOrderCode() {
+		return orderCode;
+	}
+
+	public void setOrderCode(String orderCode) {
+		this.orderCode = orderCode;
+	}
+
+	public String getSign() {
+		return sign;
+	}
+
+	public void setSign(String sign) {
+		this.sign = sign;
+	}
+
+	public String getNonceStr() {
+		return nonceStr;
+	}
+
+	public void setNonceStr(String nonceStr) {
+		this.nonceStr = nonceStr;
+	}
+
+	public String getAppid() {
+		return appid;
+	}
+
+	public void setAppid(String appid) {
+		this.appid = appid;
+	}
+
+	public String getPrepayId() {
+		return prepayId;
+	}
+
+	public void setPrepayId(String prepayId) {
+		this.prepayId = prepayId;
+	}
+
+	public String getApiKey() {
+		return apiKey;
+	}
+
+	public void setApiKey(String apiKey) {
+		this.apiKey = apiKey;
+	}
+
+	public String getCodeUrl() {
+		return codeUrl;
+	}
+
+	public void setCodeUrl(String codeUrl) {
+		this.codeUrl = codeUrl;
+	}
+
+	public String getBeginTime() {
+		return beginTime;
+	}
+
+	public void setBeginTime(String beginTime) {
+		this.beginTime = beginTime;
+	}
+}

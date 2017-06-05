@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.CompanyDao">
+	
+	<!-- 查询全部公司信息 -->
+	<select id="findAllCompanyName" resultType="cn.ichazuo.model.Dictionary">
+		select id,if(simple_name='',company_name,simple_name) as value from t_company where status = 1
+	</select>
+
+	<!-- 查询全部职位信息 -->
+	<select id="findAllCompanyJobName" resultType="cn.ichazuo.model.Dictionary">
+		select id,ifnull(job_name,'') as value from t_company_job where status = 1 and job_name is not null and job_name != '' group by job_name
+	</select>
+	
+	<!-- 保存公司 -->
+	<insert id="saveCompany" parameterType="cn.ichazuo.model.table.Company" useGeneratedKeys="true" keyProperty="id">
+		insert into t_company (simple_name,company_name,cover,avatar,city_id,address,lat,lon,inneed,comment_count,job_count,create_at)
+		values(#{simpleName},#{companyName},#{cover},#{avatar},#{cityId},#{address},#{lat},#{lon},#{inneed},#{commentCount},#{jobCount},now())
+	</insert>
+	
+	<!-- 修改公司 -->
+	<update id="updateCompany" parameterType="cn.ichazuo.model.table.Company">
+		update t_company 
+		<set>
+			<if test="simpleName != null">
+				simple_name = #{simpleName},
+			</if>
+			<if test="companyName != null">
+				company_name = #{companyName},
+			</if>
+			<if test="cover != null">
+				cover = #{cover},
+			</if>
+			<if test="avatar != null">
+				avatar = #{avatar},
+			</if>
+			<if test="cityId != null">
+				city_id = #{cityId},
+			</if>
+			<if test="address != null">
+				address = #{address},
+			</if>
+			<if test="address != null">
+				address = #{address},
+			</if>
+			<if test="lat != null">
+				lat = #{lat},
+			</if>
+			<if test="lon != null">
+				lon = #{lon},
+			</if>
+			<if test="inneed != null">
+				inneed = #{inneed},
+			</if>
+			<if test="commentCount != null">
+				comment_count = #{commentCount},
+			</if>
+			<if test="jobCount != null">
+				job_count = #{jobCount},
+			</if>
+			update_at = now(),version = version + 1
+		</set>
+		where id = #{id} and version = #{version}
+	</update>
+	
+	<!-- 保存公司信息 -->
+	<insert id="saveCompanyInfo" parameterType="cn.ichazuo.model.table.CompanyInfo">
+		insert into t_company_info (company_id,info,telephone,email,star,star1,star2,star3,star4,star5,star6,payment_score,traffic_score,intro,sift,owner,finance,employee_total,user_total,core_production,website,weibo,weixin,subway_station,subway_station_distance,bus_station,bus_station_distance,create_at)
+		values(#{companyId},#{info},#{telephone},#{email},#{star},#{star1},#{star2},#{star3},#{star4},#{star5},#{star6},#{paymentScore},#{trafficScore},#{intro},#{sift},#{owner},#{finance},#{employeeTotal},#{userTotal},#{coreProduction},#{website},#{weibo},#{weixin},#{subwayStation},#{subwayStationDistance},#{busStation},#{busStationDistance},now())
+	</insert>
+	
+	<!-- 保存公司图片 -->
+	<insert id="saveCompanyImage" parameterType="cn.ichazuo.model.table.CompanyImage">
+		insert into t_company_image (company_id,image_url,create_at)
+		values(#{companyId},#{imageUrl},now())
+	</insert>
+	
+	<!-- 保存公司职位 -->
+	<insert id="saveCompanyJob" parameterType="cn.ichazuo.model.table.CompanyJob">
+		insert into t_company_job(company_id,job_name,job_info,pay,create_at)
+		values(#{companyId},#{jobName},#{jobInfo},#{pay},now())
+	</insert>
+	
+	
+</mapper>

@@ -1,0 +1,262 @@
+package cn.ichazuo.model.app;
+
+import java.util.Date;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+
+import cn.ichazuo.commons.base.BaseResult;
+import cn.ichazuo.commons.util.DateUtils;
+
+/**
+ * @ClassName: OnlineCourseListInfo
+ * @Description: (线上课程列表信息)
+ * @author ZhaoXu
+ * @date 2015年7月20日 上午11:43:05
+ * @version V1.0
+ */
+public class OnlineCourseListInfo extends BaseResult {
+	private static final long serialVersionUID = 1L;
+	private Long id; // 课程ID
+	private String cover; // 封面图片
+	private String avatar; // 头图
+	private String courseName; // 课程名称
+	private List<UserSimpleInfo> userList; // 在线用户列表
+	private Long userCount; // 在线人数
+	private String playAddress; // 播放地址
+	private String playAddressM3u8; // web播放地址
+	private Date playStartTime; // 播放开始时间
+	private Date playEndTime; // 播放结束时间
+	private String playTime; // 播放时间
+	private Integer timeLength;// 时长
+	private Integer isVideo; // 是否视频 1:视频 0:音频
+	private Integer type; // 类别 1:正在直播 2:预告 3:点播
+	private String teacher;	//讲师
+
+	private Double price;	//价格
+	private Integer playStatus; // 播放状态
+	private String shareUrl; // 分享地址
+	
+	private String isBuy; //是否购买   true / false
+	private String isFavour;	//是否点赞  true/false
+	private Date createAt;	//创建时间
+	private String tag;	//标签
+	private String htmlUrl;	//Html连接
+
+	// ----
+	private String url;
+	private Long number;
+	private String week; // 周几
+	// ----
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getCover() {
+		return cover;
+	}
+
+	public void setCover(String cover) {
+		this.cover = cover;
+	}
+
+	public String getAvatar() {
+		return avatar;
+	}
+
+	public void setAvatar(String avatar) {
+		this.avatar = avatar;
+	}
+
+	public String getCourseName() {
+		return courseName;
+	}
+
+	public void setCourseName(String courseName) {
+		this.courseName = courseName;
+	}
+
+	public List<UserSimpleInfo> getUserList() {
+		return userList;
+	}
+
+	public void setUserList(List<UserSimpleInfo> userList) {
+		this.userList = userList;
+	}
+
+	public String getPlayAddress() {
+		return playAddress;
+	}
+
+	public void setPlayAddress(String playAddress) {
+		this.playAddress = playAddress;
+	}
+
+	@JsonFormat(pattern = DateUtils.TIME_FORMAT_NORMAL, timezone = "GMT+8")
+	public Date getPlayStartTime() {
+		return playStartTime;
+	}
+
+	public void setPlayStartTime(Date playStartTime) {
+		this.playStartTime = playStartTime;
+	}
+
+	public Integer getIsVideo() {
+		return isVideo;
+	}
+
+	public void setIsVideo(Integer isVideo) {
+		this.isVideo = isVideo;
+	}
+
+	public Long getUserCount() {
+		return userCount;
+	}
+
+	public void setUserCount(Long userCount) {
+		this.userCount = userCount;
+	}
+
+	public Integer getType() {
+		return type;
+	}
+
+	public void setType(Integer type) {
+		this.type = type;
+	}
+
+	public String getPlayTime() {
+		return playTime;
+	}
+
+	public void setPlayTime(String playTime) {
+		this.playTime = playTime;
+	}
+
+	public Integer getTimeLength() {
+		return timeLength;
+	}
+
+	public void setTimeLength(Integer timeLength) {
+		this.timeLength = timeLength;
+	}
+
+	@JsonFormat(pattern = DateUtils.TIME_FORMAT_NORMAL, timezone = "GMT+8")
+	public Date getPlayEndTime() {
+		return playEndTime;
+	}
+
+	public void setPlayEndTime(Date playEndTime) {
+		this.playEndTime = playEndTime;
+	}
+
+	public String getUrl() {
+		return url;
+	}
+
+	public void setUrl(String url) {
+		this.url = url;
+	}
+
+	public Long getNumber() {
+		return number;
+	}
+
+	public void setNumber(Long number) {
+		this.number = number;
+	}
+
+	public String getWeek() {
+		return week;
+	}
+
+	public void setWeek(String week) {
+		this.week = week;
+	}
+
+	public String getPlayAddressM3u8() {
+		return playAddressM3u8;
+	}
+
+	public void setPlayAddressM3u8(String playAddressM3u8) {
+		this.playAddressM3u8 = playAddressM3u8;
+	}
+
+	public Integer getPlayStatus() {
+		return playStatus;
+	}
+
+	public void setPlayStatus(Integer playStatus) {
+		this.playStatus = playStatus;
+	}
+
+	public String getShareUrl() {
+		return shareUrl;
+	}
+
+	public void setShareUrl(String shareUrl) {
+		this.shareUrl = shareUrl;
+	}
+
+	public String getTeacher() {
+		return teacher;
+	}
+
+	public void setTeacher(String teacher) {
+		this.teacher = teacher;
+	}
+
+	public String getIsBuy() {
+		return isBuy;
+	}
+
+	public void setIsBuy(String isBuy) {
+		this.isBuy = isBuy;
+	}
+
+	public String getIsFavour() {
+		return isFavour;
+	}
+
+	public void setIsFavour(String isFavour) {
+		this.isFavour = isFavour;
+	}
+
+	public Double getPrice() {
+		return price;
+	}
+
+	public void setPrice(Double price) {
+		this.price = price;
+	}
+	
+	@JsonFormat(pattern = DateUtils.TIME_FORMAT_NORMAL, timezone = "GMT+8")
+	public Date getCreateAt() {
+		return createAt;
+	}
+
+	public void setCreateAt(Date createAt) {
+		this.createAt = createAt;
+	}
+
+	public String getTag() {
+		return tag;
+	}
+
+	public void setTag(String tag) {
+		this.tag = tag;
+	}
+
+	public String getHtmlUrl() {
+		return htmlUrl;
+	}
+
+	public void setHtmlUrl(String htmlUrl) {
+		this.htmlUrl = htmlUrl;
+	}
+
+}

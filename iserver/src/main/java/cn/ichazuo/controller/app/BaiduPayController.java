@@ -1,0 +1,973 @@
+package cn.ichazuo.controller.app;
+
+import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
+
+import javax.json.JsonObject;
+
+import org.json.JSONArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.baidu.BfbSdkComm;
+import cn.ichazuo.model.app.PaySuccessInfo;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.CourseWebCrowdfunding;
+import cn.ichazuo.model.table.CourseWebCrowdfundingLog;
+import cn.ichazuo.model.table.CourseWebCrowdfundingOrder;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.JNWebCourseOrder;
+import cn.ichazuo.model.table.JNWebCourseOrderUser;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.MemberRecord;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.WebCourseOrder;
+import cn.ichazuo.model.table.WebCourseOrderUser;
+import cn.ichazuo.service.BusinessService;
+import cn.ichazuo.service.CommonService;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.CrowdfundingService;
+import cn.ichazuo.service.MemberService;
+import cn.ichazuo.service.OrderService;
+
+/**
+ * @ClassName: BaiduPayController
+ * @Description: (百度支付Controller)
+ * @author ZhaoXu
+ * @date 2015年9月21日 上午10:45:57
+ * @version V1.0
+ */
+@RequestMapping("/app")
+@Controller("app.baiduPayController")
+public class BaiduPayController extends BaseController {
+	private static final String spNo = "1000189574";
+	private static final String baiduURL = "https://www.baifubao.com/api/0/pay/0/wapdirect";
+	@Autowired
+	private ConfigInfo configInfo;
+	@Autowired
+	private CourseService courseService;
+	@Autowired
+	private OrderService orderService;
+	@Autowired
+	private MemberService memberService;
+	@Autowired
+	private CrowdfundingService crowdfundingService;
+	@Autowired
+	private BusinessService businessService;
+	@Autowired
+	private CommonService commonService;
+	protected Logger logger = LoggerFactory.getLogger(getClass());
+
+	/**
+	 * @Title: findCourseIdByCode
+	 * @Description: (根据订单号查询众筹ID,方法名有误)
+	 * @param code
+	 *            订单号
+	 * @param extra
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseIdByCode")
+	public JSONObject findCourseIdByCode(String code, String extra) {
+		try {
+			if ("1".equals(extra)) {
+				// 众筹支付
+				CourseWebCrowdfundingLog log = crowdfundingService.findCrowdfundingLogInfo(code);
+				return ok("msg", crowdfundingService.findCrowdfundUUIDById(log.getCrowdfundId()));
+			} else {
+				CourseWebCrowdfundingOrder order = crowdfundingService.findCrowdfundingOrderInfo(code);
+				return ok("msg", crowdfundingService.findCrowdfundUUIDById(order.getCrowdfundingId()));
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	@ResponseBody
+	@RequestMapping("/findCourseIdByCodeExtra")
+	public JSONObject findCourseIdByCodeExtra(String code, String extra,Integer from) {
+		try {
+			if("2".equals(extra)){
+				CourseWebCrowdfundingOrder order = crowdfundingService.findCrowdfundingOrderInfo(code);
+				String uuid = crowdfundingService.findCrowdfundUUIDById(order.getCrowdfundingId());
+				CourseWebCrowdfunding crowd = crowdfundingService.findUserCrowdfundInfoByUUID(uuid);
+				
+				PaySuccessInfo info = new PaySuccessInfo();
+				info.setCourseId(crowd.getCourseId());
+				info.setType(0);
+				info.setUnionId(crowd.getUnionId());
+				return ok("msg",info);
+			}else{
+				WebCourseOrder order = orderService.findWebCourseOrder(code);
+				
+				PaySuccessInfo info = new PaySuccessInfo();
+				info.setCourseId(order.getCourseId());
+				info.setType(1);
+				info.setUnionId(order.getUnionid());
+				return ok("msg", info);
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: saveBaiduOrder
+	 * @Description: (保存百度支付订单)
+	 * @param sex
+	 * @param content
+	 * @param name
+	 * @param mobile
+	 * @param weixin
+	 * @param courseId
+	 * @param unionid
+	 * @param openid
+	 * @param number
+	 * @param ip
+	 * @param ticketStatus 是否使用奖学金 1:使用 0:不使用
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveBaiduOrder")
+	public JSONObject saveBaiduOrder(String[] sex, String[] content, String[] name, String[] mobile, String[] weixin,
+			String[] work, Long courseId, String unionid, String openid, Integer number, String ip, String url,
+			String nickname, String weixinSex, String avatar, String from,Integer ticketStatus,Integer qrcode,String formNickName,String joinReason,String job,String buyIntentions,String email,String invoiceType,String invoiceAddress,String invoiceTitle,String invoiceRemarks) {
+		try {
+			if(ticketStatus == null){
+				ticketStatus = 0;
+			}
+			if (sex.length != name.length && name.length != mobile.length && mobile.length != name.length
+					&& work.length != name.length && weixin.length != name.length && name.length == 0) {
+				return error("参数错误!");
+			}
+			if (NumberUtils.isNullOrZero(courseId) || StringUtils.isNullOrEmpty(openid)
+					|| StringUtils.isNullOrEmpty(unionid) || NumberUtils.isNullOrZero(number)) {
+				return error("参数错误!");
+			}
+			Course course = courseService.findCourseById(courseId);
+			OfflineCourse offline = courseService.findOfflineCourseByCourseId(courseId);
+			if (offline == null || course == null) {
+				return error("参数错误");
+			}
+			int joinNumber = courseService.findCourseJoinCount(courseId);
+			if (joinNumber + number > offline.getStudentNum()) {
+				int temp = offline.getStudentNum() - joinNumber;
+				return status(800, "购买数量过多", temp >= 0 ? temp : 0);
+			}
+			
+			if(offline.getCourseId() == 129){
+				return status(800, "购买数量过多", 0);
+			}
+			//默认报名截止时间为课程开讲前一天
+			LocalDate now = LocalDate.now();
+			LocalDate begin = LocalDate.parse(DateUtils.formatDate(course.getBeginTime(), DateUtils.DATE_FORMAT_NORMAL));
+			if (now.isAfter(begin)){
+				return status(800, "报名时间已过", 0);
+			}
+			
+			Double price = 0.0d;
+			if(!NumberUtils.isNullOrZero(qrcode) && courseId == 129){
+				Double temp = NumberUtils.mul(offline.getPrice(), 0.88);
+				price = NumberUtils.add(price, temp);
+			}else{
+				if(offline.getDiscount() == 100){
+					//不打折
+					price = NumberUtils.mul(offline.getPrice(), number); // 计算价格
+					//取报名课程的课程名称
+					String courseName = course.getCourseName();
+					String sub="在线课程";
+					String sub1="系列课";
+					//判断课程名称是否包含“好多课”
+					int a=courseName.indexOf(sub);
+					int b=courseName.indexOf(sub1);
+					//如果课程名称包含“好多课”，则该课程为好多课会员购买课程
+					if(b>=0){
+						logger.error("生成订单时判断出课程名称中包含‘系列课’");
+						//判断填写的手机号码是否已经注册了好多课App账号
+						for (int i = 0; i < mobile.length; i++) {
+							// 验证用户是否存在
+							Employee employee = memberService.findBusinessLoginMemberByMobile(mobile[i]);
+							if (employee != null) {
+								logger.error("验证手机号码："+mobile[i]+"已注册过企业会员");
+								List<MemberRecord> recordList = businessService.findMemberRecordList(employee.getId().toString());
+								if(recordList.size()>0){
+									String sub5="深度拆解";
+									//判断课程名称是否包含“深度拆解”
+									int a2=courseName.indexOf(sub5);
+									//包含深度拆解就打折，否则不让购买
+									if(a2>=0){
+										price = NumberUtils.mul(offline.getPrice(), 0.5);
+									}else{
+										return status(700,"您填写的手机号已经注册了好多课会员，直接去登录吧");
+									}
+								}else{
+									List<MemberRecord> recordList1 = businessService.findMemberRecordListByCatalogId(employee.getId().toString(),offline.getCatalogId());
+									if(recordList1.size()>0){
+										return status(700,"您填写的手机号已经开通了该系列课程会员，直接去登录吧");
+									}
+								}
+//								if(employee.getIfBusiness()==0){
+////									price = NumberUtils.mul(offline.getPrice(), 0.5);
+//									String sub5="深度拆解";
+//									//判断课程名称是否包含“深度拆解”
+//									int a2=courseName.indexOf(sub5);
+//									//包含深度拆解就打折，否则不让购买
+//									if(a2>=0){
+//										price = NumberUtils.mul(offline.getPrice(), 0.5);
+//									}else{
+//										return status(700,"您填写的手机号已经注册了好多课会员，直接去登录吧");
+//									}
+//								
+//								}
+							}
+							logger.error("验证手机号码："+mobile[i]+"没有注册过企业会员");
+						}
+					}
+					//如果课程名称包含“好多课”，则该课程为好多课会员购买课程
+					if(a>=0){
+						logger.error("生成订单时判断出课程名称中包含‘在线课程’");
+						//判断填写的手机号码是否已经注册了好多课App账号
+						for (int i = 0; i < mobile.length; i++) {
+							// 验证用户是否存在
+							Employee employee = memberService.findBusinessLoginMemberByMobile(mobile[i]);
+							if (employee != null) {
+								logger.error("验证手机号码："+mobile[i]+"已注册过企业会员");
+								List<MemberRecord> recordList = businessService.findMemberRecordList(employee.getId().toString());
+								if(recordList.size()>0){
+//									if(employee.getIfBusiness()==0){
+										return status(700,"您填写的手机号已经注册了好多课会员，直接去登录吧");
+								}
+							}
+							logger.error("验证手机号码："+mobile[i]+"没有注册过企业会员");
+						}
+						
+					}
+				}else{
+					for (int i = 0; i < mobile.length; i++) {
+						// 查询用户
+						Member member = memberService.findLoginMemberByMobile(mobile[i]);
+						if (member == null) {
+							price = NumberUtils.add(price, offline.getPrice());
+						}else{
+							Integer count = courseService.findMyJoinCourseCount(member.getId());
+							if(count > 0){
+								// 计算折扣
+								Double temp = NumberUtils.mul(offline.getPrice(), NumberUtils.div(offline.getDiscount(), 100));
+								price = NumberUtils.add(price, temp);
+							}else{
+								price = NumberUtils.add(price, offline.getPrice());
+							}
+						}
+					}
+				}
+			}
+			
+			
+			if(ticketStatus == 1){
+				//查询奖学金ID
+				Long id = commonService.findHaveTicket(unionid);
+				if (id != null) {
+					Ticket ticket = commonService.findTicket(id);
+					price = NumberUtils.sub(price, ticket.getPrice());
+				}
+			}
+			
+			int count = (int) (price * 100);
+			String service_code = "service_code=1";
+			// 商户号
+			String sp_no = "sp_no=" + spNo;
+			// 交易的超时时间,当前时间加2天
+			Calendar c = Calendar.getInstance();
+			c.add(Calendar.DAY_OF_MONTH, 2);
+			SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+			String mDateTime = formatter.format(c.getTime());
+			String strExpire = mDateTime.substring(0, 14);//
+			String expire_time = "expire_time=" + strExpire;
+			// 订单创建时间
+			String order_create_time1 = formatter.format(System.currentTimeMillis());
+			// 订单号
+			String code = CodeUtils.getCourseOrderCode("", Long.valueOf(CodeUtils.getRandomInt(10)),
+					Long.valueOf(CodeUtils.getRandomInt(10)));
+			String order_no = "order_no=" + code;
+
+			String order_create_time = "order_create_time=" + order_create_time1;
+			// 币种
+			String currency = "currency=1";
+			// 编码
+			String input_charset = "input_charset=1";
+			// 版本
+			String version = "version=2";
+			// 加密方式md5或者hash
+			String sign_method = "sign_method=1";
+			// 提交地址
+			String BFB_PAY_WAP_DIRECT_URL = baiduURL;
+
+			// 商品名称
+			String tempgoods_name = new String(course.getCourseName().getBytes("gbk"), "gbk");
+			String goods_name = "goods_name=" + tempgoods_name;
+			String goods_name1 = "goods_name=" + URLEncoder.encode(tempgoods_name, "gbk");
+			// String goods_ame1 ="goods_name="+tempgoods_name;
+			// 商品描述
+			String tempgoods_desc = new String(course.getCourseName().getBytes("gbk"), "gbk");
+			String goods_desc = "goods_desc=" + tempgoods_desc;
+			String goods_desc1 = "goods_desc=" + URLEncoder.encode(tempgoods_desc, "gbk");
+
+			String unit_amount = "unit_amount=" + count;
+			// 数量
+			String unit_count = "unit_count=1";
+			// 运费
+			String transport_amount = "transport_amount=0";
+			// 总金额
+			String total_amount = "total_amount=" + count;
+			// 买家在商户网站的用户名
+			String tempSPUserName = "buyer";
+			String buyer_sp_username = "buyer_sp_username=" + tempSPUserName;
+			String buyer_sp_username1 = "buyer_sp_username=" + URLEncoder.encode(tempSPUserName, "gbk");
+			// 后台通知地址
+			String return_url = "return_url="
+					+ (configInfo.getProjectTest() ? configInfo.getBaiduTestUrl() : configInfo.getBaiduProUrl());
+			String return_url1 = "return_url=" + URLEncoder.encode(
+					(configInfo.getProjectTest() ? configInfo.getBaiduTestUrl() : configInfo.getBaiduProUrl()), "gbk");
+			// 前台通知地址
+			String page_url = "page_url=" + url;
+			String page_url1 = "page_url=" + URLEncoder.encode(url, "gbk");
+			// 支付方式
+			String pay_type = "pay_type=2";
+			// 默认银行的编码
+			String bank_no = "bank_no=201";
+			// 商户自定义数据
+			String tempextra = "courseId" + courseId;
+			String extra = "extra=" + tempextra;
+			String extra1 = "extra=" + URLEncoder.encode(tempextra, "gbk");
+
+			// 签名串拼接数组
+			String[] array = { service_code, sp_no, order_create_time, order_no, goods_name, goods_desc, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username, return_url, page_url,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra };
+			// 浏览器参数拼接数组
+			String[] array1 = { service_code, sp_no, order_create_time, order_no, goods_name1, goods_desc1, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username1, return_url1, page_url1,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra1 };
+			/**
+			 * 4、调用bfb_sdk_comm里create_baifubao_pay_order_url方法生成百付宝即时到账支付接口URL(
+			 * 不需要登录) array是待签名串 array1地址栏拼接串
+			 */
+			String getURL = new BfbSdkComm().create_baifubao_pay_order_url(array, array1, BFB_PAY_WAP_DIRECT_URL);
+
+			WebCourseOrder order = new WebCourseOrder();
+			order.setCourseId(courseId);
+			order.setIp(ip);
+			order.setNumber(number);
+			order.setOpenid(openid);
+			order.setOrderCode(code);
+			order.setPrice(price);
+			order.setStatus(0);
+			order.setUnionid(unionid);
+			order.setType(1); // 百度支付
+			order.setNickname(nickname);
+			order.setWeixinSex(weixinSex);
+			order.setAvatar(avatar);
+			order.setFrom(StringUtils.isNullOrEmpty(from) ? "0" : from);
+			order.setTicketStatus(ticketStatus);
+			order.setFormNickName(formNickName);
+			order.setJoinReason(joinReason);
+			order.setJob(job);
+			order.setBuyIntentions(buyIntentions);
+			order.setEmail(email);
+			//发票抬头
+			order.setInvoiceTitle(invoiceTitle);
+			//发票类型
+			order.setInvoiceType(invoiceType);
+			//发票收货地址
+			order.setInvoiceAddress(invoiceAddress);
+			//发票收货人
+			order.setInvoiceName(name[0]);
+			//发票收货人手机号
+			order.setInvoiceMobile(mobile[0]);
+			//发票备注
+			order.setInvoiceRemarks(invoiceRemarks);
+			orderService.saveWebCourseOrder(order);
+
+			List<WebCourseOrderUser> ulist = new ArrayList<WebCourseOrderUser>();
+			for (int i = 0; i < name.length; i++) {
+				Long id = 0L;
+				// 查询用户
+				Member member = memberService.findLoginMemberByMobile(mobile[i]);
+				if (member != null) {
+					id = member.getId();
+				}
+				if(id!=0){
+					if (courseService.findCourseJoinInfo(courseId, id) != null) {
+						return status(600, "已报过名..", mobile[i]);
+					}
+				}
+
+				WebCourseOrderUser user = new WebCourseOrderUser();
+				//根据手机号获取归属地
+				String str = null;
+				String province="";
+				String city="";
+				JSONArray jsonArray = null;
+				str = "[" +memberService.request(mobile[i]) + "]";
+				jsonArray = new JSONArray(str);
+				int errNumResult = (int) jsonArray.getJSONObject(0).get("errNum");
+				if(errNumResult == 0){
+					org.json.JSONObject jsonresult = (org.json.JSONObject) jsonArray.getJSONObject(0).get("retData");
+					province = jsonresult.getString("province");
+					city = jsonresult.getString("city");
+				}
+				user.setCity(StringUtils.isNullOrEmpty(city) ? "" : city);
+				user.setProvince(StringUtils.isNullOrEmpty(province) ? "" : province);
+				if(content.length == 0){
+					user.setContent("");
+				}else{
+					user.setContent(StringUtils.isNullOrEmpty(content[i]) || content[i].equals("自我介绍") ? "" : content[i]);
+				}
+				user.setMemberId(member == null ? 0L : member.getId());
+				user.setMobile(mobile[i]);
+				user.setName(name[i]);
+				user.setOrderId(order.getId());
+				if (sex[i].equals("man")) {
+					user.setSex("男");
+				} else {
+					user.setSex("女");
+				}
+				user.setWeixin(weixin[i]);
+				user.setWork(work[i]);
+				ulist.add(user);
+			}
+			orderService.saveWebCourseOrderUser(ulist);
+			return ok("生成成功", getURL);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: payBaiduCrowdfunding
+	 * @Description: (众筹支付预订单)
+	 * @param id
+	 * @param unionId
+	 * @param price
+	 * @param openid
+	 * @param ip
+	 * @param avatar
+	 * @param content
+	 * @param name
+	 * @param url
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/payBaiduCrowdfunding")
+	public JSONObject payBaiduCrowdfunding(String id, String unionId, Double price, String openid, String ip,
+			String avatar, String content, String name, String url) {
+		try {
+			if (StringUtils.isNullOrEmpty(id) || NumberUtils.isNullOrZero(price) || StringUtils.isNullOrEmpty(unionId)
+					|| StringUtils.isNullOrEmpty(openid) || StringUtils.isNullOrEmpty(ip)
+					|| StringUtils.isNullOrEmpty(avatar)) {
+				return error("参数缺失");
+			}
+
+			CourseWebCrowdfunding course = crowdfundingService.findUserCrowdfundInfoByUUID(id);
+			if (course == null) {
+				return error("信息错误");
+			}
+
+			double p = crowdfundingService.findCrowdfundingPriceCount(id);
+			double subPrice = NumberUtils.sub(course.getPrice(), p);
+
+			int count = (int) (price * 100);
+
+			if (subPrice < price) {
+				return status(666, "超出金额", subPrice);
+			}
+
+			String service_code = "service_code=1";
+			// 商户号
+			String sp_no = "sp_no=" + spNo;
+			// 交易的超时时间,当前时间加2天
+			Calendar c = Calendar.getInstance();
+			c.add(Calendar.DAY_OF_MONTH, 2);
+			SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+			String mDateTime = formatter.format(c.getTime());
+			String strExpire = mDateTime.substring(0, 14);//
+			String expire_time = "expire_time=" + strExpire;
+			// 订单创建时间
+			String order_create_time1 = formatter.format(System.currentTimeMillis());
+			// 订单号
+			String code = CodeUtils.getCourseOrderCode("", Long.valueOf(CodeUtils.getRandomInt(10)),
+					Long.valueOf(CodeUtils.getRandomInt(10)));
+			String order_no = "order_no=" + code;
+
+			String order_create_time = "order_create_time=" + order_create_time1;
+			// 币种
+			String currency = "currency=1";
+			// 编码
+			String input_charset = "input_charset=1";
+			// 版本
+			String version = "version=2";
+			// 加密方式md5或者hash
+			String sign_method = "sign_method=1";
+			// 提交地址
+			String BFB_PAY_WAP_DIRECT_URL = baiduURL;
+
+			// 商品名称
+			String tempgoods_name = new String("众筹".getBytes("gbk"), "gbk");
+			String goods_name = "goods_name=" + tempgoods_name;
+			String goods_name1 = "goods_name=" + URLEncoder.encode(tempgoods_name, "gbk");
+			// String goods_ame1 ="goods_name="+tempgoods_name;
+			// 商品描述
+			String tempgoods_desc = new String("众筹".getBytes("gbk"), "gbk");
+			String goods_desc = "goods_desc=" + tempgoods_desc;
+			String goods_desc1 = "goods_desc=" + URLEncoder.encode(tempgoods_desc, "gbk");
+
+			String unit_amount = "unit_amount=" + count;
+			// 数量
+			String unit_count = "unit_count=1";
+			// 运费
+			String transport_amount = "transport_amount=0";
+			// 总金额
+			String total_amount = "total_amount=" + count;
+			// 买家在商户网站的用户名
+			String tempSPUserName = "buyer";
+			String buyer_sp_username = "buyer_sp_username=" + tempSPUserName;
+			String buyer_sp_username1 = "buyer_sp_username=" + URLEncoder.encode(tempSPUserName, "gbk");
+			// 后台通知地址
+			String return_url = "return_url=" + (configInfo.getProjectTest() ? configInfo.getBaiduCrowdTestUrl()
+					: configInfo.getBaiduCrowdProUrl());
+			String return_url1 = "return_url=" + URLEncoder.encode((configInfo.getProjectTest()
+					? configInfo.getBaiduCrowdTestUrl() : configInfo.getBaiduCrowdProUrl()), "gbk");
+			// 前台通知地址
+			String page_url = "page_url=" + url;
+			String page_url1 = "page_url=" + URLEncoder.encode(url, "gbk");
+			// 支付方式
+			String pay_type = "pay_type=2";
+			// 默认银行的编码
+			String bank_no = "bank_no=201";
+			// 商户自定义数据
+			String tempextra = "1";
+			String extra = "extra=" + tempextra;
+			String extra1 = "extra=" + URLEncoder.encode(tempextra, "gbk");
+
+			// 签名串拼接数组
+			String[] array = { service_code, sp_no, order_create_time, order_no, goods_name, goods_desc, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username, return_url, page_url,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra };
+			// 浏览器参数拼接数组
+			String[] array1 = { service_code, sp_no, order_create_time, order_no, goods_name1, goods_desc1, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username1, return_url1, page_url1,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra1 };
+			/**
+			 * 4、调用bfb_sdk_comm里create_baifubao_pay_order_url方法生成百付宝即时到账支付接口URL(
+			 * 不需要登录) array是待签名串 array1地址栏拼接串
+			 */
+			String getURL = new BfbSdkComm().create_baifubao_pay_order_url(array, array1, BFB_PAY_WAP_DIRECT_URL);
+
+			CourseWebCrowdfundingLog log = new CourseWebCrowdfundingLog();
+			log.setAvatar(avatar);
+			log.setCode(code);
+			log.setContent(content);
+			log.setCrowdfundId(course.getId());
+			log.setName(name);
+			log.setPrice(price);
+			log.setUnionId(unionId);
+			log.setStatus(0);
+			log.setType(1);
+			crowdfundingService.saveCrowdfundingLog(log);
+
+			return ok("生成成功", getURL);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: saveBaiduCrowdfundingOrder
+	 * @Description: (支付剩余金额)
+	 * @param id
+	 * @param unionId
+	 * @param openid
+	 * @param ip
+	 * @param url
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveBaiduCrowdfundingOrder")
+	public JSONObject saveBaiduCrowdfundingOrder(String id, String unionId, String openid, String ip, String url) {
+		try {
+			if (StringUtils.isNullOrEmpty(id) || StringUtils.isNullOrEmpty(unionId) || StringUtils.isNullOrEmpty(openid)
+					|| StringUtils.isNullOrEmpty(ip)) {
+				return error("参数缺失");
+			}
+
+			CourseWebCrowdfunding course = crowdfundingService.findUserCrowdfundInfoByUUID(id);
+			if (course == null) {
+				return error("信息错误");
+			}
+
+			double p = crowdfundingService.findCrowdfundingPriceCount(id);
+			double price = NumberUtils.sub(course.getPrice(), p);
+
+			int count = (int) (price * 100);
+
+			String service_code = "service_code=1";
+			// 商户号
+			String sp_no = "sp_no=" + spNo;
+			// 交易的超时时间,当前时间加2天
+			Calendar c = Calendar.getInstance();
+			c.add(Calendar.DAY_OF_MONTH, 2);
+			SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+			String mDateTime = formatter.format(c.getTime());
+			String strExpire = mDateTime.substring(0, 14);//
+			String expire_time = "expire_time=" + strExpire;
+			// 订单创建时间
+			String order_create_time1 = formatter.format(System.currentTimeMillis());
+			// 订单号
+			String code = CodeUtils.getCourseOrderCode("", Long.valueOf(CodeUtils.getRandomInt(10)),
+					Long.valueOf(CodeUtils.getRandomInt(10)));
+			String order_no = "order_no=" + code;
+
+			String order_create_time = "order_create_time=" + order_create_time1;
+			// 币种
+			String currency = "currency=1";
+			// 编码
+			String input_charset = "input_charset=1";
+			// 版本
+			String version = "version=2";
+			// 加密方式md5或者hash
+			String sign_method = "sign_method=1";
+			// 提交地址
+			String BFB_PAY_WAP_DIRECT_URL = baiduURL;
+
+			// 商品名称
+			String tempgoods_name = new String("众筹".getBytes("gbk"), "gbk");
+			String goods_name = "goods_name=" + tempgoods_name;
+			String goods_name1 = "goods_name=" + URLEncoder.encode(tempgoods_name, "gbk");
+			// String goods_ame1 ="goods_name="+tempgoods_name;
+			// 商品描述
+			String tempgoods_desc = new String("众筹".getBytes("gbk"), "gbk");
+			String goods_desc = "goods_desc=" + tempgoods_desc;
+			String goods_desc1 = "goods_desc=" + URLEncoder.encode(tempgoods_desc, "gbk");
+
+			String unit_amount = "unit_amount=" + count;
+			// 数量
+			String unit_count = "unit_count=1";
+			// 运费
+			String transport_amount = "transport_amount=0";
+			// 总金额
+			String total_amount = "total_amount=" + count;
+			// 买家在商户网站的用户名
+			String tempSPUserName = "buyer";
+			String buyer_sp_username = "buyer_sp_username=" + tempSPUserName;
+			String buyer_sp_username1 = "buyer_sp_username=" + URLEncoder.encode(tempSPUserName, "gbk");
+			// 后台通知地址
+			String return_url = "return_url=" + (configInfo.getProjectTest() ? configInfo.getBaiduCrowdTestUrl()
+					: configInfo.getBaiduCrowdProUrl());
+			String return_url1 = "return_url=" + URLEncoder.encode((configInfo.getProjectTest()
+					? configInfo.getBaiduCrowdTestUrl() : configInfo.getBaiduCrowdProUrl()), "gbk");
+			// 前台通知地址
+			String page_url = "page_url=" + url;
+			String page_url1 = "page_url=" + URLEncoder.encode(url, "gbk");
+			// 支付方式
+			String pay_type = "pay_type=2";
+			// 默认银行的编码
+			String bank_no = "bank_no=201";
+			// 商户自定义数据
+			String tempextra = "2";
+			String extra = "extra=" + tempextra;
+			String extra1 = "extra=" + URLEncoder.encode(tempextra, "gbk");
+
+			// 签名串拼接数组
+			String[] array = { service_code, sp_no, order_create_time, order_no, goods_name, goods_desc, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username, return_url, page_url,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra };
+			// 浏览器参数拼接数组
+			String[] array1 = { service_code, sp_no, order_create_time, order_no, goods_name1, goods_desc1, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username1, return_url1, page_url1,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra1 };
+			/**
+			 * 4、调用bfb_sdk_comm里create_baifubao_pay_order_url方法生成百付宝即时到账支付接口URL(
+			 * 不需要登录) array是待签名串 array1地址栏拼接串
+			 */
+			String getURL = new BfbSdkComm().create_baifubao_pay_order_url(array, array1, BFB_PAY_WAP_DIRECT_URL);
+
+			CourseWebCrowdfundingOrder order = new CourseWebCrowdfundingOrder();
+			order.setCode(code);
+			order.setCrowdfundingId(course.getId());
+			order.setIp(ip);
+			order.setPrice(price);
+			crowdfundingService.saveCrowdfundingOrder(order);
+
+			return ok("success", getURL);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: saveBaiduOrder
+	 * @Description: (保存百度支付订单)
+	 * @param sex
+	 * @param content
+	 * @param name
+	 * @param mobile
+	 * @param weixin
+	 * @param courseId
+	 * @param unionid
+	 * @param openid
+	 * @param number
+	 * @param ip
+	 * @param ticketStatus 是否使用奖学金 1:使用 0:不使用
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveLivingBaiduOrder")
+	public JSONObject saveLivingBaiduOrder(String[] sex, String[] name, String[] mobile, String[] weixin,
+			String[] work, String courseId, String unionid, String openid, Integer number, String ip, String url,Double price,String courseName,
+			String nickname, String weixinSex, String avatar, Integer from,String job,String email) {
+		try {
+			if (sex.length != name.length && name.length != mobile.length && mobile.length != name.length
+					&& work.length != name.length && weixin.length != name.length && name.length == 0) {
+				return error("参数错误!");
+			}
+			if ( StringUtils.isNullOrEmpty(courseId) || StringUtils.isNullOrEmpty(openid)
+					|| StringUtils.isNullOrEmpty(unionid) || NumberUtils.isNullOrZero(number)) {
+				return error("参数错误!");
+			}
+			List<JNWebCourseOrder> list1 = orderService.getWhetherBuyCourseByUnionid(courseId.toString(),unionid);
+			if (list1 !=null && list1.size()>0) {
+				return status(600, "已报过名");
+			}
+//			Course course = courseService.findCourseById(courseId);
+//			OfflineCourse offline = courseService.findOfflineCourseByCourseId(courseId);
+//			if (offline == null || course == null) {
+//				return error("参数错误");
+//			}
+//			int joinNumber = courseService.findCourseJoinCount(courseId);
+//			if (joinNumber + number > offline.getStudentNum()) {
+//				int temp = offline.getStudentNum() - joinNumber;
+//				return status(800, "购买数量过多", temp >= 0 ? temp : 0);
+//			}
+//			
+//			if(offline.getCourseId() == 129){
+//				return status(800, "购买数量过多", 0);
+//			}
+			//默认报名截止时间为课程开讲前一天
+//			LocalDate now = LocalDate.now();
+//			LocalDate begin = LocalDate.parse(DateUtils.formatDate(course.getBeginTime(), DateUtils.DATE_FORMAT_NORMAL));
+//			if (now.isAfter(begin)){
+//				return status(800, "报名时间已过", 0);
+//			}
+//			
+			Double price1 = 0.0d;
+//			if(!NumberUtils.isNullOrZero(qrcode) && courseId == 129){
+//				Double temp = NumberUtils.mul(offline.getPrice(), 0.88);
+//				price = NumberUtils.add(price, temp);
+//			}else{
+//				if(offline.getDiscount() == 100){
+//					//不打折
+					price1 = NumberUtils.mul(price, number); // 计算价格
+//				}else{
+//					for (int i = 0; i < mobile.length; i++) {
+//						// 查询用户
+//						Member member = memberService.findLoginMemberByMobile(mobile[i]);
+////						if (member == null) {
+////							price = NumberUtils.add(price, offline.getPrice());
+////						}else{
+//							Integer count = courseService.findMyJoinCourseCount(member.getId());
+//							if(count > 0){
+//								// 计算折扣
+//								Double temp = NumberUtils.mul(offline.getPrice(), NumberUtils.div(offline.getDiscount(), 100));
+//								price = NumberUtils.add(price, temp);
+//							}else{
+//								price = NumberUtils.add(price, offline.getPrice());
+//							}
+//						}
+//					}
+//				}
+//			}
+			
+//			
+//			if(ticketStatus == 1){
+//				//查询奖学金ID
+//				Long id = commonService.findHaveTicket(unionid);
+//				if (id != null) {
+//					Ticket ticket = commonService.findTicket(id);
+//					price = NumberUtils.sub(price, ticket.getPrice());
+//				}
+//			}
+			
+			int count = (int) (price * 100);
+			String service_code = "service_code=1";
+			// 商户号
+			String sp_no = "sp_no=" + spNo;
+			// 交易的超时时间,当前时间加2天
+			Calendar c = Calendar.getInstance();
+			c.add(Calendar.DAY_OF_MONTH, 2);
+			SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+			String mDateTime = formatter.format(c.getTime());
+			String strExpire = mDateTime.substring(0, 14);//
+			String expire_time = "expire_time=" + strExpire;
+			// 订单创建时间
+			String order_create_time1 = formatter.format(System.currentTimeMillis());
+			// 订单号
+			String code = CodeUtils.getCourseOrderCode("", Long.valueOf(CodeUtils.getRandomInt(10)),
+					Long.valueOf(CodeUtils.getRandomInt(10)));
+			String order_no = "order_no=" + code;
+
+			String order_create_time = "order_create_time=" + order_create_time1;
+			// 币种
+			String currency = "currency=1";
+			// 编码
+			String input_charset = "input_charset=1";
+			// 版本
+			String version = "version=2";
+			// 加密方式md5或者hash
+			String sign_method = "sign_method=1";
+			// 提交地址
+			String BFB_PAY_WAP_DIRECT_URL = baiduURL;
+
+			// 商品名称
+			String tempgoods_name = new String(courseName.getBytes("gbk"), "gbk");
+			String goods_name = "goods_name=" + tempgoods_name;
+			String goods_name1 = "goods_name=" + URLEncoder.encode(tempgoods_name, "gbk");
+			// String goods_ame1 ="goods_name="+tempgoods_name;
+			// 商品描述
+			String tempgoods_desc = new String(courseName.getBytes("gbk"), "gbk");
+			String goods_desc = "goods_desc=" + tempgoods_desc;
+			String goods_desc1 = "goods_desc=" + URLEncoder.encode(tempgoods_desc, "gbk");
+
+			String unit_amount = "unit_amount=" + count;
+			// 数量
+			String unit_count = "unit_count=1";
+			// 运费
+			String transport_amount = "transport_amount=0";
+			// 总金额
+			String total_amount = "total_amount=" + count;
+			// 买家在商户网站的用户名
+			String tempSPUserName = "buyer";
+			String buyer_sp_username = "buyer_sp_username=" + tempSPUserName;
+			String buyer_sp_username1 = "buyer_sp_username=" + URLEncoder.encode(tempSPUserName, "gbk");
+			// 后台通知地址
+			String return_url = "return_url="
+					+ (configInfo.getProjectTest() ? "http://123.57.84.121:8080/iserver/app/baiduLivingPayNotify" : "http://www.chazuomba.com/iserver/app/baiduLivingPayNotify");
+			String return_url1 = "return_url=" + URLEncoder.encode(
+					(configInfo.getProjectTest() ? "http://123.57.84.121:8080/iserver/app/baiduLivingPayNotify" : "http://www.chazuomba.com/iserver/app/baiduLivingPayNotify"), "gbk");
+			// 前台通知地址
+			String page_url = "page_url=" + url;
+			String page_url1 = "page_url=" + URLEncoder.encode(url, "gbk");
+			// 支付方式
+			String pay_type = "pay_type=2";
+			// 默认银行的编码
+			String bank_no = "bank_no=201";
+			// 商户自定义数据
+			String tempextra = "courseId" + courseId;
+			String extra = "extra=" + tempextra;
+			String extra1 = "extra=" + URLEncoder.encode(tempextra, "gbk");
+
+			// 签名串拼接数组
+			String[] array = { service_code, sp_no, order_create_time, order_no, goods_name, goods_desc, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username, return_url, page_url,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra };
+			// 浏览器参数拼接数组
+			String[] array1 = { service_code, sp_no, order_create_time, order_no, goods_name1, goods_desc1, unit_amount,
+					unit_count, transport_amount, total_amount, currency, buyer_sp_username1, return_url1, page_url1,
+					pay_type, bank_no, expire_time, input_charset, version, sign_method, extra1 };
+			/**
+			 * 4、调用bfb_sdk_comm里create_baifubao_pay_order_url方法生成百付宝即时到账支付接口URL(
+			 * 不需要登录) array是待签名串 array1地址栏拼接串
+			 */
+			String getURL = new BfbSdkComm().create_baifubao_pay_order_url(array, array1, BFB_PAY_WAP_DIRECT_URL);
+
+			JNWebCourseOrder order = new JNWebCourseOrder();
+			order.setCourseId(Long.parseLong(courseId));
+			order.setIp(ip);
+			order.setNumber(number);
+			order.setOpenid(openid);
+			order.setOrderCode(code);
+			order.setPrice(price1);
+			order.setStatus(0);
+			order.setUnionid(unionid);
+			order.setType(1); // 百度支付
+			order.setNickname(nickname);
+			order.setWeixinSex(weixinSex);
+			order.setAvatar(avatar);
+			order.setFrom(NumberUtils.isNullOrZero(from) ? 0 : from);
+			order.setJob(job);
+			order.setEmail(email);
+			orderService.saveJNWebCourseOrder(order);
+
+			List<JNWebCourseOrderUser> ulist = new ArrayList<JNWebCourseOrderUser>();
+			for (int i = 0; i < name.length; i++) {
+				Long id = 0L;
+				// 查询用户
+				Member member = memberService.findLoginMemberByMobile(mobile[i]);
+				if (member != null) {
+					id = member.getId();
+				}
+				if(id!=0){
+					List<JNWebCourseOrder> list = orderService.getWhetherBuyCourseByUnionid(courseId,unionid);
+					if (list != null && list.size()>0) {
+						return status(600, "已报过名..", mobile[i]);
+					}
+				}
+
+				JNWebCourseOrderUser user = new JNWebCourseOrderUser();
+				//根据手机号获取归属地
+				String str = null;
+				String province="";
+				String city="";
+				JSONArray jsonArray = null;
+				str = "[" +memberService.request(mobile[i]) + "]";
+				jsonArray = new JSONArray(str);
+				int errNumResult = (int) jsonArray.getJSONObject(0).get("errNum");
+				if(errNumResult == 0){
+					org.json.JSONObject jsonresult = (org.json.JSONObject) jsonArray.getJSONObject(0).get("retData");
+					province = jsonresult.getString("province");
+					city = jsonresult.getString("city");
+				}
+				user.setCity(StringUtils.isNullOrEmpty(city) ? "" : city);
+				user.setProvince(StringUtils.isNullOrEmpty(province) ? "" : province);
+				user.setMemberId(member == null ? 0L : member.getId());
+				user.setMobile(mobile[i]);
+				user.setName(name[i]);
+				user.setOrderId(order.getId());
+				if (sex[i].equals("man")) {
+					user.setSex("男");
+				} else {
+					user.setSex("女");
+				}
+				user.setWeixin(weixin[i]);
+				user.setWork(work[i]);
+				ulist.add(user);
+			}
+			orderService.saveJNWebCourseOrderUser(ulist);
+			return ok("生成成功", getURL);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+}

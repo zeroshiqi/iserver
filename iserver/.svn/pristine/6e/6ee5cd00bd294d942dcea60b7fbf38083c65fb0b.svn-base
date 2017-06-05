@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.LogDao">
+	
+	<!-- 保存用户操作日志 -->
+	<insert id="saveUserLog" parameterType="cn.ichazuo.model.log.UserLog">
+		insert into l_user_log(ip_address,uri,user_id,account,user_name,description,create_at)
+		values(#{ipAddress},#{uri},#{userId},#{account},#{userName},#{description},now())
+	</insert>
+	
+	<!-- 查询用户日志 -->
+	<select id="findUserLog" parameterType="java.util.Map" resultType="cn.ichazuo.model.admin.UserLogListInfo">
+		select id,user_id as userId,account,uri,ip_address as ipAddress,user_name as userName,description,create_at as createAt 
+		from l_user_log 
+		order by create_at desc
+		limit #{page},#{pageCount}
+	</select>
+	
+	<!-- 查询用户日志总数 -->
+	<select id="findUserLogCount" parameterType="java.util.Map" resultType="java.lang.Long">
+		select count(*)
+		from l_user_log 
+	</select>
+	
+	<!-- 添加课程点击日志 -->
+	<insert id="saveCourseClickLog" parameterType="cn.ichazuo.model.log.CourseClickLog">
+		insert into l_course_click_log(ip_address,course_id,type,create_at,member_id)
+		values(#{ipAddress},#{courseId},#{type},now(),#{memberId})
+	</insert>
+	
+	<!-- 添加文章点击日志 -->
+	<insert id="saveArticleClickLog" parameterType="cn.ichazuo.model.log.ArticleClickLog">
+		insert into l_article_click_log(article_id,member_id,ip_address,create_at)
+		values(#{articleId},#{memberId},#{ipAddress},now())
+	</insert>
+	
+	<!-- web页面列表点击日志 -->
+	<insert id="saveWebListLog" parameterType="java.lang.String">
+		insert into l_list_log(ip_address,create_at)
+		values(#{ip},now())
+	</insert>
+	
+	<!-- 添加推送日志 -->
+	<insert id="savePushLog" parameterType="cn.ichazuo.model.log.PushLog">
+		insert into l_push_log(content,type,create_at)
+		values(#{content},#{type},now())
+	</insert>
+</mapper>

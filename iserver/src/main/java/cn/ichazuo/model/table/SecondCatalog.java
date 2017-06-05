@@ -1,0 +1,141 @@
+package cn.ichazuo.model.table;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.persistence.Table;
+
+import cn.ichazuo.commons.base.BaseModel;
+import cn.ichazuo.model.app.SecondCatalogCourseList;
+
+/**
+ * @ClassName: Catalog
+ * @Description: (课程分类表)
+ * @author ZhaoXu
+ * @date 2015年7月18日 下午2:28:06
+ * @version V1.0
+ */
+@Table(name = "t_business_catalog_second")
+public class SecondCatalog extends BaseModel {
+	private static final long serialVersionUID = 1L;
+
+	private Long id; // id
+	private String name; // 标题名称
+	private String subtitle;	//子标题名称
+	private String status; // 状态
+	private String createAt; //创建时间
+	private String updateAt; // 修改时间
+	
+	private int courseCount;//包含课程总数
+	private int studyCount;//已完成学习总数
+	private Long examId;//试题ID
+	private String examName;//试卷名称
+	private String number;//试卷题数
+	
+	private String ifRemoteLogin;//是否异地登录
+	
+	private String avatar;//背景图
+	
+	private Long parentId;
+	private String parentName;
+	//二级分类下的课程列表
+	private List<SecondCatalogCourseList> catalogCourseList;
+	
+	public String getAvatar() {
+		return avatar;
+	}
+	public void setAvatar(String avatar) {
+		this.avatar = avatar;
+	}
+	public String getNumber() {
+		return number;
+	}
+	public void setNumber(String number) {
+		this.number = number;
+	}
+	public String getExamName() {
+		return examName;
+	}
+	public void setExamName(String examName) {
+		this.examName = examName;
+	}
+	public Long getExamId() {
+		return examId;
+	}
+	public void setExamId(Long examId) {
+		this.examId = examId;
+	}
+	public int getCourseCount() {
+		return courseCount;
+	}
+	public void setCourseCount(int courseCount) {
+		this.courseCount = courseCount;
+	}
+	public int getStudyCount() {
+		return studyCount;
+	}
+	public void setStudyCount(int studyCount) {
+		this.studyCount = studyCount;
+	}
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public String getSubtitle() {
+		return subtitle;
+	}
+	public void setSubtitle(String subtitle) {
+		this.subtitle = subtitle;
+	}
+	public String getStatus() {
+		return status;
+	}
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	public String getCreateAt() {
+		return createAt;
+	}
+	public void setCreateAt(String createAt) {
+		this.createAt = createAt;
+	}
+	public String getUpdateAt() {
+		return updateAt;
+	}
+	public void setUpdateAt(String updateAt) {
+		this.updateAt = updateAt;
+	}
+	public String getIfRemoteLogin() {
+		return ifRemoteLogin;
+	}
+	public void setIfRemoteLogin(String ifRemoteLogin) {
+		this.ifRemoteLogin = ifRemoteLogin;
+	}
+	public Long getParentId() {
+		return parentId;
+	}
+	public void setParentId(Long parentId) {
+		this.parentId = parentId;
+	}
+	public String getParentName() {
+		return parentName;
+	}
+	public void setParentName(String parentName) {
+		this.parentName = parentName;
+	}
+	public List<SecondCatalogCourseList> getCatalogCourseList() {
+		return catalogCourseList;
+	}
+	public void setCatalogCourseList(List<SecondCatalogCourseList> catalogCourseList) {
+		this.catalogCourseList = catalogCourseList;
+	}
+	
+}

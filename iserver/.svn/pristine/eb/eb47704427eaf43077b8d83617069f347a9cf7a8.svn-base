@@ -1,0 +1,74 @@
+#project setting
+project.test=true
+project.cache=true
+project.name=iserver
+project.title=\u63D2\u5750\u5B66\u9662
+
+#project.image.url=http://www.ichazuo.cn/files/
+project.image.url=http://123.57.84.121/files/
+
+project.admin.cookie=iserver
+project.admin.cookie.role=iserverRole
+project.admin.cookie.realName=iserverRealName
+project.admin.cookie.user=iserverUser
+project.admin.cookie.account=iserverAccount
+project.course.default.image=course.png
+
+#upload setting
+#upload.path=/mnt/data/files/
+upload.path=/data/files/
+#upload.path=/Users/Alan/Documents/Photo/
+
+#wx setting
+wx.test.result.url=http://123.57.84.121:8080/iserver/app/weixinWebPayNotify
+wx.pro.result.url=http://www.chazuomba.com/iserver/app/weixinWebPayNotify
+wx.test.crowd.url=http://123.57.84.121:8080/iserver/app/weixinWebCrowdfundingLogPayNotify
+wx.pro.crowd.url=http://www.chazuomba.com/iserver/app/weixinWebCrowdfundingLogPayNotify
+wx.test.online.url=http://123.57.84.121:8080/iserver/app/weixinOnlineWebPayNotify
+wx.pro.online.url=http://www.chazuomba.com/iserver/app/weixinOnlineWebPayNotify
+
+#baidu setting
+baidu.pay.test.url=http://123.57.84.121:8080/iserver/app/baiduPayNotify
+baidu.pay.pro.url=http://www.chazuomba.com/iserver/app/baiduPayNotify
+baidu.crowd.test.url=http://123.57.84.121:8080/iserver/app/baiduCrowdPayNotify
+baidu.crowd.pro.url=http://www.chazuomba.com/iserver/app/baiduCrowdPayNotify
+
+
+#sms setting
+sms.account.sid=faf3a1f39412725d7dc1f6506b1162e7
+sms.auth.token=07e7decef417171b5decbb71ddf684a9
+sms.rest.url=api.ucpaas.com
+sms.app.id=2f008baf17c547c3a1d373d4a38ad0b2
+sms.version=2014-06-30
+sms.template.id=2027
+
+sms.duanxinbao.username=sms_chazuo
+sms.duanxinbao.password=z123456
+
+#im setting
+im.chazuo.appkey=chazuo#chazuocourse
+im.chazuo.clientid=YXA6--GcYBp5EeWmfu8R_C6vqg
+im.chazuo.clientsecret=YXA6-G52u48ogqlFWRQ-SoNZfdLfjU4
+
+im.gugu.appkey=chazuo#gugu
+im.gugu.clientid=YXA6_SE_oAOAEeWfconYmBl1Yg
+im.gugu.clientsecret=YXA6BmBqcLrJXQgd1pjpoqQmR5fBx0g
+#test
+im.test.appkey=chazuo#test
+im.test.clientid=YXA6asntIDJ8EeWJ0L2Uh8cEmA
+im.test.clientsecret=YXA6SH_c6WND97gYgfo6PFfLighf-1A
+
+#alipay setting
+alipay.partner=2088021002544006
+alipay.privatekey=7uc7trl3nxcms5sww73vfccfjld6z2l2
+
+
+#jpush setting
+jpush.ichazuo.appkey=26442956ad6e676db40d328e
+jpush.ichazuo.secret=7932fded21bba3ad38260a37
+
+jpush.gugu.appkey=62526c24d1eb90c119ba4e6d
+jpush.gugu.secret=524699692545130a3a75d4e1
+
+#ios version
+ios.version=1.4

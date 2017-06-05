@@ -1,0 +1,324 @@
+package cn.ichazuo.commons.base;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.dom4j.Document;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.Result;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Params;
+
+
+/**
+ * @ClassName: BaseController 
+ * @Description: (基本Controller) 
+ * @author ZhaoXu
+ * @date 2015年6月28日 下午4:21:58 
+ * @version V1.0
+ */
+public abstract class BaseController extends Base implements Result{
+	public static final String css = "<link rel='stylesheet' href='https://res.wx.qq.com/mpres/htmledition/ueditor/themes/iframe.css' /><link rel='stylesheet' type='text/css' href='http://www.chazuomba.com/files/bg.css'>";
+	public static final String appid = "wx1541ccc024a8e057"; // 服务号appid
+	public static final String secret = "75d268f0c231302e9d70755116e16347"; // 服务号
+																			// secret
+	public static final String mchId = "1267340301"; // 商户ID
+	public static final String apiKey = "1UHk2jFzPaX1CVFxv4BB2nCDFMNM7eD3"; // apiKey
+																			// 生成签名使用
+	
+	/**
+	 * @Title: ok 
+	 * @Description: (返回正确) 
+	 * @return
+	 */
+	public JSONObject ok(){
+		JSONObject obj = new JSONObject();
+		obj.put("status", SUCCESS_STATUS);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: ok 
+	 * @Description: (返回正确,有消息) 
+	 * @param msg 消息
+	 * @return
+	 */
+	public JSONObject ok(String msg){
+		JSONObject obj = new JSONObject();
+		obj.put("status", SUCCESS_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: ok 
+	 * @Description: (返回正确,有数据) 
+	 * @param data 数据
+	 * @param msg 消息
+	 * @return
+	 */
+	public JSONObject ok(String msg,Object data){
+		JSONObject obj = new JSONObject();
+		obj.put("status", SUCCESS_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		obj.put("data", data);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: ok 
+	 * @Description: (返回正确,有数据,带count数量) 
+	 * @param msg 消息
+	 * @param data 数据
+	 * @param count 总数
+	 * @return
+	 */
+	public JSONObject ok(String msg,Object data,Long count){
+		JSONObject obj = new JSONObject();
+		obj.put("status", SUCCESS_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		obj.put("data", data);
+		obj.put("count", count);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: ok 
+	 * @Description: (返回正确,有数据,包含是否为最后一页) 
+	 * @param msg 信息
+	 * @param data 数据
+	 * @param page 当前页
+	 * @param count 总条数
+	 * @return
+	 */
+	public JSONObject ok(String msg,Object data,Integer page,Integer count){
+		JSONObject obj = new JSONObject();
+		if(page == null || page <= 0){
+		    page = 1;
+		}
+		obj.put("status", SUCCESS_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		obj.put("data", data);
+		obj.put("page",page + 1);
+		if(page * Params.PAGE_COUNT >= count){
+			obj.put("isLast", LAST);
+		}else{
+			obj.put("isLast", NOT_LAST);
+		}
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: ok 
+	 * @Description: (返回正确,有数据,包含是否为最后一页) 
+	 * @param msg 信息
+	 * @param data 数据
+	 * @param page 当前页
+	 * @param count 总条数
+	 * @return
+	 */
+	public JSONObject ok(String msg,Object data,Integer page,Long count){
+		JSONObject obj = new JSONObject();
+		if(page == null || page <= 0){
+		    page = 1;
+		}
+		obj.put("status", SUCCESS_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		obj.put("data", data);
+		obj.put("page",page + 1);
+		if(page * Params.PAGE_COUNT >= count){
+			obj.put("isLast", LAST);
+		}else{
+			obj.put("isLast", NOT_LAST);
+		}
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: error 
+	 * @Description: (返回错误,带消息) 
+	 * @param msg 消息
+	 * @return
+	 */
+	public JSONObject error(String msg){
+		JSONObject obj = new JSONObject();
+		obj.put("status", ERROR_STATUS);
+		obj.put("msg", msg);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: status 
+	 * @Description: (返回状态,带消息) 
+	 * @param status 状态值
+	 * @param msg 消息
+	 * @return
+	 */
+	public JSONObject status(Integer status,String msg){
+		JSONObject obj = new JSONObject();
+		obj.put("status", status);
+		obj.put("msg", msg);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: status 
+	 * @Description: (返回状态,带数据) 
+	 * @param status 状态值
+	 * @param msg 消息
+	 * @param data 数据
+	 * @return
+	 */
+	public JSONObject status(Integer status,String msg,Object data){
+		JSONObject obj = new JSONObject();
+		obj.put("status", status);
+		obj.put("msg", msg);
+		obj.put("data", data);
+		
+		return obj;
+	}
+	/**
+	 * @Title: updateException 
+	 * @Description: (更新异常,乐观锁控制) 
+	 * @return
+	 */
+	public JSONObject updateException(){
+		JSONObject obj = new JSONObject();
+		obj.put("status", ERROR_STATUS);
+		obj.put("msg", UPDATE_ERROR);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: warning 
+	 * @Description: (返回警告) 
+	 * @param msg
+	 * @return
+	 */
+	public JSONObject warning(String msg){
+		JSONObject obj = new JSONObject();
+		obj.put("status", WARN_STATUS);
+		obj.put("msg", msg);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: notFound 
+	 * @Description: (未找到) 
+	 * @param msg 消息
+	 * @return
+	 */
+	public JSONObject notFound(String msg){
+		JSONObject obj = new JSONObject();
+		obj.put("status", NOTFOUND_STATUS);
+		obj.put("msg", msg);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: notFound 
+	 * @Description: (未找到) 
+	 * @param msg 消息
+	 * @param data 数据
+	 * @return
+	 */
+	public JSONObject notFound(String msg,Object data){
+		JSONObject obj = new JSONObject();
+		obj.put("status", NOTFOUND_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		obj.put("data", data);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: notLogin 
+	 * @Description: (未登录) 
+	 * @param msg
+	 * @param data
+	 * @return
+	 */
+	public JSONObject notLogin(String msg,Object data){
+		JSONObject obj = new JSONObject();
+		obj.put("status", NOTLOGIN_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		obj.put("data", data);
+		
+		return obj;
+	}
+	
+	/**
+	 * @Title: notLogin 
+	 * @Description: (未登录) 
+	 * @param msg
+	 * @return
+	 */
+	public JSONObject notLogin(String msg){
+		JSONObject obj = new JSONObject();
+		obj.put("status", NOTLOGIN_STATUS);
+		if(msg != null){
+			obj.put("msg", msg);
+		}
+		return obj;
+	}
+	
+	/**
+	 * @Title: writeJSONString 
+	 * @Description: (输出json字符串) 
+	 * @param json
+	 */
+	protected void writeJSONString(JSON json){
+		StringUtils.writeJSONString(json);
+	}
+	
+	protected static Map<String, String> parseXmlToMap(String xml) {
+		Map<String, String> retMap = new HashMap<>();
+		try {
+			System.out.println(xml);
+			// 通过输入源构造一个Document
+			Document doc = DocumentHelper.parseText(xml);
+			Element root = doc.getRootElement();// 指向根节点
+			@SuppressWarnings("unchecked")
+			List<Element> es = root.elements();
+			if (es != null && es.size() != 0) {
+				for (Element element : es) {
+					retMap.put(element.getName(), element.getTextTrim());
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return retMap;
+	}
+}

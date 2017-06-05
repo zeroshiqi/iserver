@@ -1,0 +1,19 @@
+#jdbc setting
+jdbc.driver=com.mysql.jdbc.Driver
+#jdbc.url=jdbc:mysql://112.124.13.195:3306/iserver?useUnicode=true&autoReconnect=true&rewriteBatchedStatements=TRUE
+jdbc.url=jdbc:mysql://123.57.84.121:3306/iserver?useUnicode=true&autoReconnect=true&rewriteBatchedStatements=TRUE
+jdbc.username=root
+jdbc.password=chazuomba*&*111
+
+#dbcp setting
+dbcp.maxActive=100
+dbcp.minIdle=10
+dbcp.maxIdle=30
+dbcp.initialSize=15
+dbcp.logAbandoned=true
+dbcp.removeAbandoned=true
+dbcp.removeAbandonedTimeout=10
+dbcp.maxWait=1000
+dbcp.timeBetweenEvictionRunsMillis=10000
+dbcp.numTestsPerEvictionRun=10
+dbcp.minEvictableIdleTimeMillis=10000

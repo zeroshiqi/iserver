@@ -1,0 +1,1046 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.CommonDao">
+	<!-- 查询线下课程信息 -->
+	<select id="findWebCourseOfflineInfo" resultType="cn.ichazuo.model.app.WebOfflineCourseInfo"
+		parameterType="java.lang.Long">
+		select o.is_crowd as isCrowd,t.course_name as
+		title,o.course_content as content,t.create_at as
+		createAt,t.web_click_number as clickNumber,o.price,o.student_num as
+		total
+		from t_course t left join t_course_offline o on o.course_id = t.id where
+		t.status = 1 and t.id = #{courseId}
+	</select>
+
+	<!-- 查询课程web信息 -->
+	<select id="findCourseWebInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.CourseWebInfo">
+		select id,url,ifnull(number,0) as number,course_id as
+		courseId from t_course_web_info where course_id = #{courseId} limit 1
+	</select>
+	<select id="findUserInfoByUnionId" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.app.UserInfo">
+		select u.name,u.mobile,u.weixin,u.sex,u.`work` as
+		company,ifnull(o.form_nick_name,"") as
+		weixinNickName,o.job,o.buy_intentions as
+		buyIntentions,o.email,o.join_reason as joinReason,o.invoice_type as
+		invoiceType,o.invoice_title as invoiceTitle,o.invoice_address as
+		invoiceAddress,o.email from t_course_web_order_user u
+		left join t_course_web_order o on o.id = u.order_id
+		where u.`status` = 1 and o.status = 1 and o.unionid = #{unionId} order by
+		o.id desc limit 1
+	</select>
+
+	<!-- 更新点击时间 -->
+	<update id="updateCourseWebInfo" parameterType="cn.ichazuo.model.table.CourseWebInfo">
+		update
+		t_course_web_info set number = #{number} where id = #{id}
+	</update>
+
+	<!-- 查询全部问题 -->
+	<select id="findAllQuestion" resultType="cn.ichazuo.model.table.Question">
+		select
+		id,a,b,c,d,title,answer,type,user_name as userName from t_question
+		where status = 1
+	</select>
+	<!-- 根据type的值取相应的题目 -->
+	<select id="findAllQuestionByType" resultType="cn.ichazuo.model.table.Question">
+		select
+		id,a,b,c,d,title,answer,type,user_name as userName from t_question
+		where status = 1 and type= #{type}
+	</select>
+
+	<select id="findAllImages" resultType="cn.ichazuo.model.app.Images">
+		select url,image_url as
+		imageUrl,title from t_image where status = 1
+	</select>
+
+	<select id="findAllImagesV2" resultType="cn.ichazuo.model.app.Images"
+		parameterType="java.lang.Integer">
+		select url,image_url as imageUrl,title from t_image
+		where status = 1 and type = #{type}
+	</select>
+
+	<insert id="saveTicket" parameterType="cn.ichazuo.model.table.Ticket"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_ticket(union_id,price,create_at,level,avatar,nick_name,last_time)
+		values(#{unionId},#{price},now(),#{level},#{avatar},#{nickName},#{lastTime})
+	</insert>
+	<!-- 答题接口 -->
+	<insert id="saveScore" parameterType="cn.ichazuo.model.table.Ticket"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_ticket(union_id,create_at,avatar,nick_name,score,parent_id,top_parent_id,parent_name)
+		values(#{unionId},now(),#{avatar},#{nickName},#{score},#{parentId},#{topParentId},#{parentName})
+	</insert>
+
+	<select id="findTicket" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Ticket">
+		select a.id,a.union_id as
+		unionId,a.price,a.favour,a.level,a.avatar,a.nick_name as
+		nickName,a.status,a.last_time as lastTime,a.score,a.parent_id as
+		parentId,a.top_parent_id as topParentId,a.parent_name as parentName
+		from t_ticket a where a.id = #{id}
+	</select>
+
+	<select id="findTicketNo" parameterType="cn.ichazuo.model.table.Ticket"
+		resultType="java.lang.Integer">
+		SELECT a.rowNo from(SELECT (@rowNum :=@rowNum + 1) AS
+		rowNo,union_id FROM t_ticket,(SELECT(@rowNum := 0)) b where parent_id=
+		#{parentId} and status = 1 order by score asc) as a where a.union_id =
+		#{unionId}
+	</select>
+
+	<select id="findTicketCount" parameterType="cn.ichazuo.model.table.Ticket"
+		resultType="java.lang.Integer">
+		SELECT count(*) FROM t_ticket where parent_id= #{parentId}
+		and status = 1
+	</select>
+
+	<select id="findUnionIdById" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		SELECT union_id FROM t_ticket where id = #{id} and status =
+		1
+	</select>
+
+	<select id="findParentIdById" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		SELECT parent_id FROM t_ticket where id= #{id} and status =
+		1
+	</select>
+
+	<select id="findScoreMaxByParentId" parameterType="java.lang.Integer"
+		resultType="java.lang.Long">
+		SELECT score FROM t_ticket where parent_id= #{parentId} and
+		status = 1 order by score desc limit 1
+	</select>
+
+	<select id="findScoreMinByParentId" parameterType="java.lang.Integer"
+		resultType="java.lang.Long">
+		SELECT score FROM t_ticket where parent_id= #{parentId} and
+		status = 1 order by score asc limit 1
+	</select>
+
+	<update id="updateTicketFavour" parameterType="java.lang.Long">
+		update t_ticket
+		set favour = favour + 1 where id = #{id}
+	</update>
+
+	<select id="findHaveTicket" parameterType="java.lang.String"
+		resultType="java.lang.Long">
+		select ifnull(id,0) from t_ticket where union_id =
+		#{unionId} limit 1
+	</select>
+
+	<select id="findIfHaveTicket" parameterType="cn.ichazuo.model.table.Ticket"
+		resultType="java.lang.Long">
+		select ifnull(id,0) from t_ticket where union_id =
+		#{unionId} and parent_id= #{parentId} and top_parent_id=
+		#{topParentId} limit 1
+	</select>
+
+	<update id="updateTicketStatus" parameterType="java.util.Map">
+		update t_ticket
+		set status = #{status} where union_id = #{unionId}
+	</update>
+
+	<!-- 查询课程评论50条 -->
+	<select id="findOnlineCourseCommentLimit50" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OnlineCourseCommentInfo">
+		select c.id,c.content,if(c.avatar!='',c.avatar,m.avatar) as
+		avatar,if(c.nick_name!='',c.nick_name,m.nick_name) as
+		nickName,c.create_at as createAt
+		from t_course_online_comment c left join t_member m on m.id = c.member_id
+		where 1=1 and c.status = 1 and m.status = 1
+		and c.course_id =
+		#{courseId}
+		order by c.create_at desc limit 50
+	</select>
+
+	<!-- 修改网页课程点击数量 -->
+	<update id="updateWebCourseClickNumber" parameterType="java.lang.Long">
+		update
+		t_course set web_click_number = web_click_number + 1 where id = #{id}
+	</update>
+
+	<!-- 查询最大版本号 -->
+	<select id="findAppVersionMax" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.Version">
+		select id,version,weight,create_at as
+		createAt,client,status from t_version where client = #{client} order
+		by weight desc limit 1
+	</select>
+
+	<!-- 查询当前版本号 -->
+	<select id="findAppVersionByMap" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Version">
+		select id,version,weight,create_at as
+		createAt,client,status from t_version where client = #{client} and
+		version=#{version} limit 1
+	</select>
+	<!-- 查询企业App最大版本号 -->
+	<select id="findBusinessAppVersionMax" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.BusinessVersion">
+		select id,version,weight,create_at as
+		createAt,client,status,address from t_business_version where client =
+		#{client} order by weight desc limit 1
+	</select>
+
+	<!-- 查询当前版本号 -->
+	<select id="findBusinessAppVersionByMap" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.BusinessVersion">
+		select id,version,weight,create_at as
+		createAt,client,status from t_business_version where client =
+		#{client} and version=#{version} limit 1
+	</select>
+
+	<update id="updateWebOrderFelicitate" parameterType="java.lang.String">
+		update
+		t_course_web_order set felicitate = felicitate + 1 where order_code =
+		#{code}
+	</update>
+
+	<select id="findFelicitateCount" parameterType="java.lang.String"
+		resultType="java.lang.Integer">
+		select ifnull(felicitate,0) from t_course_web_order where
+		order_code = #{code} limit 1
+	</select>
+
+	<update id="updateWebOrderFelicitates" parameterType="java.lang.Long">
+		update
+		t_course_web_order set felicitate = felicitate + 1 where id = #{id}
+	</update>
+	<update id="updateWebCrowdFelicitates" parameterType="java.lang.Long">
+		update
+		t_course_web_crowdfunding set felicitate = felicitate + 1 where id =
+		#{id}
+	</update>
+
+	<select id="getWebJobList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.WebJobInfo">
+		select j.id,j.job_name as
+		jobName,j.pay,j.tag,j.tags,j.type_id as typeId,i.`value` as
+		typeName,j.cover,
+		j.create_at as
+		createAt,j.address,j.email,j.company,j.avatar
+		from t_job j left join s_dict_item i on i.id = j.type_id where j.`status`
+		= 1
+		order by j.create_at desc
+		limit #{page},#{pageCount}
+	</select>
+	<select id="getWebJobInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.WebJobInfo">
+		select j.id,j.job_name as
+		jobName,j.pay,j.tag,j.tags,j.type_id as typeId,i.`value` as
+		typeName,j.cover,
+		j.create_at as
+		createAt,j.address,j.email,j.company,j.avatar,j.content
+		from t_job j left join s_dict_item i on i.id = j.type_id where j.`status`
+		= 1
+		and j.id = #{id} limit 1
+	</select>
+
+	<select id="getQRCodeURL" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select ifnull(qrcode,"") from t_course where id = #{id}
+	</select>
+
+	<!-- 查询试题列表 -->
+	<select id="getQuestionList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.QuestionListInfo">
+		select q.id , q.title, q.create_at as createAt, q.update_at
+		as updateAt,q.status
+		from t_question_first_type q
+		where q.status = 1
+		order by q.create_at desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询试题子目录列表 -->
+	<select id="getQuestionChildList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.QuestionListInfo">
+		select q.id , q.title ,q.parent_id as parentId ,q.create_at as
+		createAt,q.update_at as updateAt,q.status,q.number
+		from t_question_second_type q
+		where q.parent_id = #{id}
+		order by q.create_at desc
+	</select>
+	<!-- 根据二级目录 id的值取相应的题目 -->
+	<select id="getChildQuestionsById" resultType="cn.ichazuo.model.table.Question">
+		select
+		id,a,b,c,d,title,answer,type,user_name as userName
+		from t_question
+		where status = 1 and parent_id= #{id}
+	</select>
+	<!-- ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ 企业 App ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ -->
+	<select id="findCatalogList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Catalog">
+		select j.id as id,j.name as name,j.subtitle as
+		subtitle,j.create_at as createAt,j.update_at as updateAt,j.exam_id as
+		examId,j.exam_name as examName,a.number,j.avatar,
+		(SELECT COUNT(*) FROM
+		t_course_online o LEFT JOIN t_course t ON t.id = o.course_id LEFT JOIN
+		t_play_address p ON p.id = o.play_address_id JOIN
+		t_business_catalog_course a ON a.course_id = t.id
+		WHERE 1 = 1 AND o.
+		STATUS = 1 AND t.business_hidden = 0 AND a.catalog_id = j.id and
+		a.`status` = 1) AS courseCount,
+		(SELECT sum(b.studynum) FROM
+		t_business_catalog_course a JOIN t_course b ON a.course_id = b.id
+		where 1=1 AND a.`status` = 1 AND b.`status` = 1 AND a.catalog_id =
+		j.id) AS studyCount
+		from t_business_catalog as j LEFT JOIN t_question_second_type a ON a.id =
+		j.exam_id where j.`status` = 1
+		order by j.weight desc
+		limit #{page},#{pageCount}
+	</select>
+	<select id="findCatalogListCourseCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		SELECT case when count(*) is null then 0 else count(*) end
+		FROM t_course_online o LEFT JOIN t_course t ON t.id = o.course_id LEFT
+		JOIN t_play_address p ON p.id = o.play_address_id JOIN
+		t_business_catalog_course a ON a.course_id = t.id WHERE 1 = 1 AND o.
+		STATUS = 1 AND t.business_hidden = 0 AND a.catalog_id = #{catalogId}
+		AND a.`status` = 1
+	</select>
+	<select id="findCatalogListStudyCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		SELECT case when sum(b.studynum) is null then 0 else
+		sum(b.studynum) end FROM t_business_catalog_course a JOIN t_course b
+		ON a.course_id = b.id where 1=1 AND a.`status` = 1 AND b.`status` = 1
+		AND a.catalog_id = #{catalogId}
+	</select>
+	<select id="findParentCatalogList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Catalog">
+		select j.id as id,j.name as name,j.subtitle as
+		subtitle,j.create_at as createAt,j.flag,j.update_at as
+		updateAt,j.exam_id as examId,j.exam_name as
+		examName,a.number,j.avatar,
+		(SELECT COUNT(*) FROM t_course_online o
+		LEFT JOIN t_course t ON t.id = o.course_id LEFT JOIN t_play_address p
+		ON p.id = o.play_address_id JOIN t_business_second_catalog_course a ON
+		a.course_id = t.id JOIN t_business_catalog_second c ON c.id =
+		a.catalog_id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0
+		and a.`status` = 1 and c.`status` = 1 AND c.parent_id = j.id) AS
+		courseCount,
+		(SELECT sum(b.studynum) FROM
+		t_business_second_catalog_course a JOIN t_business_catalog_second c ON
+		c.id = a.catalog_id JOIN t_course b ON a.course_id = b.id where
+		c.parent_id = j.id AND a.`status` = 1 AND b.`status` = 1) AS
+		studyCount
+		from t_business_catalog as j LEFT JOIN t_question_second_type a ON a.id =
+		j.exam_id where j.`status` = 1
+		order by j.weight desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 根据一级分类Id查询二级分类 -->
+	<select id="findSecondCatalogList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.SecondCatalog">
+		select j.id as id,j.name as name,j.subtitle as
+		subtitle,j.create_at as createAt,j.update_at as updateAt,j.exam_id as
+		examId,j.exam_name as examName,a.number,j.avatar,
+		(SELECT COUNT(*) FROM
+		t_course_online o LEFT JOIN t_course t ON t.id = o.course_id LEFT JOIN
+		t_play_address p ON p.id = o.play_address_id JOIN
+		t_business_second_catalog_course a ON a.course_id = t.id
+		WHERE 1 = 1
+		AND o. STATUS = 1 AND t.business_hidden = 0 AND a.catalog_id = j.id
+		and a.`status` = 1) AS courseCount,
+		(SELECT sum(b.studynum) FROM
+		t_business_second_catalog_course a JOIN t_course b ON a.course_id =
+		b.id where a.catalog_id = j.id AND a.`status` = 1 AND b.`status` = 1)
+		AS studyCount
+		from t_business_catalog_second as j LEFT JOIN t_question_second_type a ON
+		a.id = j.exam_id where j.`status` = 1 AND j.parent_id = #{parentId}
+		order by j.weight desc
+		limit #{page},#{pageCount}
+	</select>
+
+	<select id="findPersonCatalogList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Catalog">
+		select j.id as id,j.name as name,j.subtitle as
+		subtitle,j.create_at as createAt,j.update_at as updateAt,
+		(SELECT
+		COUNT(*) FROM t_course_online o LEFT JOIN t_course t ON t.id =
+		o.course_id LEFT JOIN t_play_address p ON p.id = o.play_address_id
+		JOIN t_business_catalog_course a ON a.course_id = t.id
+		WHERE 1 = 1 AND
+		o. STATUS = 1 AND t.business_hidden = 0 AND a.catalog_id = j.id and
+		a.`status` = 1) AS courseCount,
+		(SELECT sum(b.studynum) FROM
+		t_business_catalog_course a JOIN t_course b ON a.course_id = b.id
+		where a.catalog_id = j.id AND a.`status` = 1 AND b.`status` = 1) AS
+		studyCount
+		from t_business_catalog as j where j.`status` = 1 and j.id =9
+		order by j.create_at desc
+		limit #{page},#{pageCount}
+	</select>
+	<select id="getCatalogCourseList" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT a.catalog_id as
+		catalogId,t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,t.exam_id AS examId,t.exam_name as
+		examName,b.number,o.pdf_address as pdfAddress,t.if_title as ifTitle,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_catalog_course a ON a.course_id =
+		t.id left join t_question_second_type b on b.id=t.exam_id
+		where 1= 1 AND o. STATUS = 1 AND a. STATUS = 1 AND t.business_hidden = 0
+		and a.catalog_id= #{id} ORDER BY a.weight DESC
+	</select>
+
+	<select id="getSecondCatalogCourseList" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.SecondCatalogCourseList">
+		SELECT DISTINCT a.catalog_id as
+		catalogId,t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,t.exam_id AS examId,t.exam_name as
+		examName,b.number,o.pdf_address as pdfAddress,t.if_title as ifTitle,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_second_catalog_course a ON
+		a.course_id = t.id left join t_question_second_type b on
+		b.id=t.exam_id
+		where 1= 1 AND o. STATUS = 1 AND a. STATUS = 1 AND t.business_hidden = 0
+		and a.catalog_id= #{id} ORDER BY a.weight DESC
+	</select>
+
+	<!-- 修改课程学习完成人数 -->
+	<update id="addStudyNumber" parameterType="java.lang.Long">
+		update t_course set
+		studynum = studynum + 1 where id = #{id}
+	</update>
+	<!-- 添加学员学习详细记录 -->
+	<insert id="addStudyDetail" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_study(course_id,employee_id,study_time,create_at,is_finished,status)
+		values(#{courseId},#{employeeId},#{studyTime},now(),#{isFinished},#{status})
+	</insert>
+
+	<select id="findStudyDetail" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.StudyDetail">
+		select * from t_business_study s where s.is_finished =
+		#{isFinished} and s.course_id=#{courseId} and
+		s.employee_id=#{employeeId}
+	</select>
+	<!-- 查询满足条件的课程列表 -->
+	<select id="findCatalogCourseList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,t.exam_id as examId,t.exam_name as
+		examName,b.number,t.if_title as ifTitle,
+		IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address,p.address_url) AS playAddress, o.tag,IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,
+		p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id left join t_question_second_type b on b.id=t.exam_id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0
+		<if test="keyWords != null">
+			and o.online_type_id = #{keyWords}
+		</if>
+		<if test="timeLength != null">
+			and o.time_length >= #{timeLength} and #{max} >=
+			o.time_length
+		</if>
+		<if test="level != null">
+			and t.level = #{level}
+		</if>
+		ORDER BY t.studynum DESC
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询满足条件的课程列表 -->
+	<select id="findCatalogCourseListByType" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,o.pdf_address as pdfAddress,t.if_title as ifTitle,
+		t.exam_id AS examId,
+		t.exam_name AS examName,
+		c.number,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id join t_business_course z ON z.course_id = t.id JOIN
+		t_business_second_type a ON a.id = z.parent_id JOIN
+		t_business_first_type b ON b.id = a.parent_id
+		LEFT JOIN t_question_second_type c ON t.exam_id = c.id
+		WHERE 1 = 1 AND o. STATUS
+		= 1 AND t.business_hidden = 0
+		<if test="firstTypeId != null">
+			and b.id = #{firstTypeId}
+			<if test="secondTypeId != null">
+				and a.id = #{secondTypeId}
+			</if>
+		</if>
+		<if test="timeLength != null">
+			and o.time_length >= #{timeLength} and #{max} >=
+			o.time_length
+		</if>
+		<if test="level != null">
+			and t.level = #{level}
+		</if>
+		ORDER BY t.studynum DESC
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询满足条件的课程列表 -->
+	<select id="findPersonCatalogCourseList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT t.id,t.cover,t.avatar,t.course_name AS courseName,o.end_status
+		AS playStatus,o.teacher,o.time_length AS timeLength,t.subtitle,
+		IF
+		(now() > o.play_end_time || p.address_url =
+		'',o.play_address,p.address_url) AS playAddress, o.tag,IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,
+		p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_catalog_course a ON a.course_id =
+		t.id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0 AND
+		a.catalog_id = 9
+		<if test="keyWords != null">
+			and o.online_type_id = #{keyWords}
+		</if>
+		<if test="timeLength != null">
+			and o.time_length >= #{timeLength} and #{max} >=
+			o.time_length
+		</if>
+		<if test="level != null">
+			and t.level = #{level}
+		</if>
+		ORDER BY t.studynum DESC
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询满足条件的课程列表 -->
+	<select id="findPersonCatalogCourseListByType" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT t.id,t.cover,t.avatar,t.course_name AS courseName,o.end_status
+		AS playStatus,o.teacher,o.time_length AS timeLength,t.subtitle,
+		IF
+		(now() > o.play_end_time || p.address_url =
+		'',o.play_address,p.address_url) AS playAddress, o.tag,IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,
+		p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_catalog_course a ON a.course_id =
+		t.id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0 AND
+		a.catalog_id = 9
+		<if test="keyWords != null">
+			and o.online_type_id = #{keyWords}
+		</if>
+		<if test="timeLength != null">
+			and o.time_length >= #{timeLength} and #{max} >=
+			o.time_length
+		</if>
+		<if test="level != null">
+			and t.level = #{level}
+		</if>
+		ORDER BY t.studynum DESC
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询数据字典列表 -->
+	<select id="findDictItemList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.DictItem">
+		select s.value,s.weight,s.id from s_dict_item s left join
+		s_dict d on s.dict_id = d.id where s.`status` = 1 and d.`code` =
+		'ONLINECOURSETYPE'
+		order by s.weight desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 添加学员学习计划 -->
+	<insert id="saveStudyPlan" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_study_plan(course_id,employee_id,create_at,status)
+		values(#{courseId},#{employeeId},now(),#{status})
+	</insert>
+	<!-- 添加学员购买会员的记录 -->
+	<insert id="addMemberPayDetail" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_member_pay(employee_id,price,create_at,status,member_type,month)
+		values(#{employeeId},#{price},now(),0,#{memberType},#{month})
+	</insert>
+	<!-- 查询学员购买会员的记录 -->
+	<select id="queryMemberPayDetail" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.MemberPayInfo">
+		select s.id,s.price,s.employee_id as employeeId,s.create_at
+		as createAt,s.month from t_business_member_pay s where s.`status` = 0
+		and s.employee_id = #{employeeId} order by s.id desc limit 1
+	</select>
+	<!-- 根据学员ID查询购买会员的月份总数 -->
+	<select id="queryMonthCountByEmployeeId" parameterType="java.util.Map"
+		resultType="java.lang.Long">
+		select ifnull(sum(o. MONTH),0) from t_business_member_pay o
+		where o.status = 1 and o.employee_id = #{employeeId}
+	</select>
+	<!-- 查询学员购买会员的记录 -->
+	<select id="queryMemberPayByEmployeeId" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.MemberPayInfo">
+		select s.id,s.price,s.employee_id as employeeId,s.create_at
+		as createAt,s.month from t_business_member_pay s where s.`status` = 1
+		and s.employee_id = #{employeeId} order by s.id asc limit 1
+	</select>
+	<!-- 修改购买会员的订单状态 -->
+	<update id="updateMemberPay" parameterType="java.lang.Long">
+		update
+		t_business_member_pay set status = 1 ,update_at = now() where id =
+		#{id}
+	</update>
+	<!-- 查询学习计划是否已存在 -->
+	<select id="queryStudyPlan" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.StudyPlan">
+		select * from t_business_study_plan where employee_id =
+		#{employeeId} and course_id = #{courseId} and status = 1
+	</select>
+	<!-- 查询学习计划是否之前存在过 -->
+	<select id="queryStudyPlanExist" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.StudyPlan">
+		select is_finished as isFinished,id from
+		t_business_study_plan where employee_id = #{employeeId} and course_id
+		= #{courseId}
+	</select>
+	<!-- 查询学习计划列表 -->
+	<select id="queryStudyPlanList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,a.is_finished as isFinished,t.if_title as ifTitle,o.pdf_address as pdfAddress,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_study_plan a ON a.course_id = t.id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0 and a.status=1
+		and a.employee_id = #{employeeId} order by a.update_at desc
+		limit
+		#{page},#{pageCount}
+	</select>
+	
+		<!-- 查询学习计划列表 -->
+	<select id="queryStudyPlanListCount" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,a.is_finished as isFinished,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_study_plan a ON a.course_id = t.id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0 and a.status=1
+		and a.employee_id = #{employeeId} order by a.update_at desc
+	</select>
+	<!-- 添加课程推荐信息 -->
+	<insert id="saveRecommend" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_recommend(course_id,employee_id,create_at,status)
+		values(#{courseId},#{employeeId},now(),#{status})
+	</insert>
+
+	<!-- 修改课程推荐状态 -->
+	<update id="updateRecommend" parameterType="java.lang.Long">
+		update
+		t_business_recommend set status = case when status= 1 then 0 when
+		status=0 then 1 else status end,update_at = now() where id = #{id}
+	</update>
+	<!-- 查询是否已推荐过此课程 -->
+	<select id="queryRecommend" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.Recommend">
+		select * from t_business_recommend where employee_id =
+		#{employeeId} and course_id = #{courseId} and status = 1
+	</select>
+	<!-- 查询学员是否历史已推荐此课程 -->
+	<select id="queryRecommendExist" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.Recommend">
+		select * from t_business_recommend where employee_id =
+		#{employeeId} and course_id = #{courseId} and status = 0
+	</select>
+	<!-- 查询课程搜索关键字列表 -->
+	<select id="findKeyWordsList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.KeyWords">
+		select s.id,s.keywords,s.status from t_business_keywords s
+		where s.`status` = 1
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 根据关键字查询课程列表 -->
+	<select id="findCourseListByKeyWords" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+	SELECT DISTINCT	t.id,t.cover,t.avatar,	t.course_name AS courseName,o.end_status AS playStatus,o.teacher,
+	o.time_length AS timeLength,t.subtitle,o.pdf_address AS pdfAddress,t.if_title AS ifTitle,
+	t.exam_id AS examId,t.exam_name AS examName,c.number,
+	IF (
+		now() > o.play_end_time || p.address_url = '',
+		o.play_address,
+		p.address_url
+	) AS playAddress,
+ 	o.tag,
+	IF (
+		now() > o.play_end_time || p.address_url = '',
+		o.play_address,
+		p.address_web_url
+	) AS playAddressM3u8,
+	 o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+	 o.price, t.studynum AS studyNum FROM	t_course_online o LEFT JOIN t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id = o.play_address_id
+	 LEFT JOIN t_question_second_type c ON t.exam_id = c.id
+	WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden = 0 AND t.`status` = 1
+	and o.tag like #{keyWords}
+	limit #{page},#{pageCount}
+	</select>
+	<!-- 查询课程讲师列表 -->
+	<select id="findTeachersList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT o.teacher FROM t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id
+		WHERE 1 = 1 AND o. STATUS = 1 AND t.business_hidden =
+		0 GROUP BY o.teacher ORDER BY COUNT(o.teacher) DESC LIMIT 0,15
+	</select>
+	<!-- 根据讲师查询课程列表 -->
+	<select id="findCourseListByTeacher" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,o.pdf_address as pdfAddress,t.if_title as ifTitle,
+		t.exam_id AS examId,t.exam_name AS examName,c.number,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id join t_business_course z ON z.course_id = t.id JOIN
+		t_business_second_type a ON a.id = z.parent_id JOIN
+		t_business_first_type b ON b.id = a.parent_id
+		LEFT JOIN t_question_second_type c ON t.exam_id = c.id
+		WHERE 1 = 1 AND o.STATUS
+		= 1 AND t.business_hidden = 0 and o.teacher = #{teacher}
+		ORDER BY t.studynum desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 根据讲师查询课程列表 -->
+	<select id="findCourseListByTitle" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,o.pdf_address as pdfAddress,t.if_title as ifTitle,
+		t.exam_id AS examId,t.exam_name AS examName,c.number,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id join t_business_course z ON z.course_id = t.id JOIN
+		t_business_second_type a ON a.id = z.parent_id JOIN
+		t_business_first_type b ON b.id = a.parent_id
+		LEFT JOIN
+		t_question_second_type c ON t.exam_id = c.id
+		WHERE 1 = 1 AND o.STATUS
+		= 1 AND t.business_hidden = 0 and t.course_name like #{title}
+		ORDER BY t.studynum desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 修改学习计划状态 -->
+	<update id="updateStudyPlan" parameterType="java.lang.Long">
+		update
+		t_business_study_plan set status = case when status= 1 then 0 when
+		status=0 then 1 else status end,update_at = now() where id = #{id}
+	</update>
+	<!-- 根据ID修改学习计划状态 -->
+	<update id="updateStudyPlanById" parameterType="java.lang.Long">
+		update
+		t_business_study_plan set is_finished=#{isFinished},update_at = now()
+		where id = #{id}
+	</update>
+
+	<!-- 删除匿名用户信息 -->
+	<update id="updateEmployeeDetailByDeviceId" parameterType="java.lang.Long">
+		update t_business_employee set status=2,update_at = now() where id =
+		#{id}
+	</update>
+
+	<!-- 删除匿名用户信息 -->
+	<update id="updateMemberPayById" parameterType="java.util.Map">
+		update
+		t_business_member_pay set employee_id=#{employeeId},update_at = now()
+		where employee_id = #{oldEmployeeId} and status = 1
+	</update>
+	<!-- 根据课程ID查询课程详情 -->
+	<select id="findEmployeeDetail" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Employee">
+		select o.id,o.name,o.sex,o.mobile,o.avatar,o.if_business as
+		ifBusiness,o.commodity_id as commodityId from t_business_employee o
+		where 1=1 and o.status = 1 and o.id = #{employeeId} limit 1
+	</select>
+	<!-- 根据设备Id查询用户详情 -->
+	<select id="findEmployeeDetailByDeviceId" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Employee">
+		select o.id,o.name,o.sex,o.mobile,o.avatar,o.if_business as
+		ifBusiness,o.commodity_id as commodityId,o.device_id from
+		t_business_employee o where 1=1 and o.status = 1 and o.device_id =
+		#{deviceId} limit 1
+	</select>
+	<select id="findEmployeePlanCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		SELECT count(*) FROM t_business_study_plan where
+		employee_id= #{employeeId} and status = 1
+	</select>
+	<select id="findEmployeeStudyTimeCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		SELECT case when sum(study_time) is null then 0 else
+		sum(study_time) end FROM t_business_study where employee_id=
+		#{employeeId} and status = 1 and is_finished = 2
+	</select>
+	<!-- 保存意见反馈 -->
+	<insert id="saveBusinessFeedBack" parameterType="cn.ichazuo.model.app.BusinessFeedBack">
+		insert into
+		t_business_feedback(content,employee_id,create_at,version)
+		values(#{content},#{employeeId},now(),version)
+	</insert>
+	<!-- 查询已完成学习的课程列表 -->
+	<select id="queryStudyFinishedList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,a.is_finished as isFinished,t.if_title as ifTitle,o.pdf_address as pdfAddress,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_study a ON a.course_id = t.id
+		WHERE 1
+		= 1 AND o. STATUS = 1 AND t.business_hidden = 0 and a.employee_id =
+		#{employeeId} and a.is_finished = 2 order by a.create_at desc
+		limit
+		#{page},#{pageCount}
+	</select>
+	
+		<!-- 查询已完成学习的课程列表 -->
+	<select id="queryStudyFinishedListCount" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,a.is_finished as isFinished,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_study a ON a.course_id = t.id
+		WHERE 1
+		= 1 AND o. STATUS = 1 AND t.business_hidden = 0 and a.employee_id =
+		#{employeeId} and a.is_finished = 2
+	</select>
+	<!-- 查询进度最新的结果 -->
+	<select id="queryStudyIfFinished" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT DISTINCT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,a.is_finished as isFinished,
+		IF (now() >
+		o.play_end_time || p.address_url = '',o.play_address,p.address_url) AS
+		playAddress, o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum FROM
+		t_course_online o LEFT JOIN
+		t_course t ON t.id = o.course_id LEFT JOIN t_play_address p ON p.id =
+		o.play_address_id JOIN t_business_study a ON a.course_id = t.id
+		WHERE 1
+		= 1 AND o. STATUS = 1 AND t.business_hidden = 0 and a.employee_id =
+		#{employeeId} and a.course_id = #{courseId} ORDER BY a.is_finished
+		DESC LIMIT 1
+	</select>
+	<!-- 根据课程ID查询课程详细信息 -->
+	<select id="findOnlineCourseDetailById" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CatalogCourseList">
+		SELECT t.id,t.cover,t.avatar,t.course_name AS
+		courseName,o.end_status AS playStatus,o.teacher,o.time_length AS
+		timeLength,t.subtitle,o.pdf_address as pdfAddress,t.exam_id AS
+		examId,t.exam_name AS examName,b.number,t.if_title as ifTitle,
+		IF (now() > o.play_end_time ||
+		p.address_url = '',o.play_address,p.address_url) AS playAddress,
+		o.tag,IF (now() > o.play_end_time || p.address_url =
+		'',o.play_address, p.address_web_url) AS playAddressM3u8,
+		o.create_at AS createAt, o.play_begin_time AS playStartTime, o.play_end_time AS
+		playEndTime, o.time_length AS timeLength, o.is_video AS isVideo,
+		o.price ,t.studynum as studyNum,o.course_ppt as coursePpt FROM
+		t_course_online o LEFT JOIN t_course t ON t.id = o.course_id LEFT JOIN
+		t_play_address p ON p.id = o.play_address_id LEFT JOIN
+		t_question_second_type b ON t.exam_id = b.id
+		WHERE 1 = 1 AND o. STATUS
+		= 1 AND t.business_hidden = 0 and t.id = #{id}
+	</select>
+
+	<!-- 保存成绩 -->
+	<insert id="saveBusinessScore" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_ticket(member_id,score,create_at,status,parent_id,parent_name,top_parent_id,nick_name,avatar,exam_type)
+		values(#{memberId},#{score},now(),1,#{parentId},#{parentName},#{topParentId},#{nickName},#{avatar},#{examType})
+	</insert>
+	<!-- 查询课程一级目录列表 -->
+	<select id="findFirstTypeList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.FirstType">
+		select s.name,s.weight,s.id from t_business_first_type s
+		where s.`status` = 1
+		order by s.weight desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询课程一级目录列表 -->
+	<select id="findSecondTypeList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.SecondType">
+		select s.name,s.weight,s.id,s.parent_id as
+		parentId,s.parent_name as parentName from t_business_second_type s
+		where s.`status` = 1 and s.parent_id = #{parentId}
+		order by s.weight desc
+	</select>
+
+	<!-- 添加学员课程评论 -->
+	<insert id="addCourseComment" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_course_comment(course_id,employee_id,comment,create_at,status)
+		values(#{courseId},#{employeeId},#{comment},now(),1)
+	</insert>
+	<!-- 查询课程评论列表 -->
+	<select id="findCourseCommentList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.Comment">
+		select s.id,s.course_id as courseId,s.employee_id as
+		employeeId,s.comment,s.create_at as createAt,b.avatar,
+		b.`name`,s.praise_num as praiseNum from t_business_course_comment s
+		JOIN t_business_employee b ON s.employee_id = b.id where s.`status` =
+		1 and s.course_id=#{courseId}
+		order by s.praise_num DESC,s.create_at desc
+		limit #{page},#{pageCount}
+	</select>
+	<!-- 查询评论操作是否已存在 -->
+	<select id="queryCommentPraise" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CommentPraise">
+		select * from t_business_course_comment_praise where
+		employee_id = #{employeeId} and comment_id = #{commentId} and status =
+		1
+	</select>
+	<!-- 修改评论点赞状态 -->
+	<update id="updateCommentPraise" parameterType="java.lang.Long">
+		update
+		t_business_course_comment_praise set status = case when status= 1 then
+		0 when status=0 then 1 else status end,update_at = now() where id =
+		#{id}
+	</update>
+	<!-- 查询评论操作是否已存在 -->
+	<select id="queryCommentPraiseExist" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.CommentPraise">
+		select * from t_business_course_comment_praise where
+		employee_id = #{employeeId} and comment_id = #{commentId}
+	</select>
+	<!-- 添加学员点赞记录 -->
+	<insert id="saveCommentPraise" parameterType="java.util.Map"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_business_course_comment_praise(comment_id,employee_id,create_at,status)
+		values(#{commentId},#{employeeId},now(),#{status})
+	</insert>
+	<!-- 修改课程学习完成人数 -->
+	<update id="updateCommentPraiseNum" parameterType="java.util.Map">
+		update
+		t_business_course_comment set praise_num = praise_num + #{addNum}
+		where id = #{id}
+	</update>
+	
+	<!-- 查询学员有学习时长的总人数 -->
+	<select id="findEmployeeStudyCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		SELECT count(*) FROM v_business_study_count
+	</select>
+	<!-- 查询学员学习时长所在的排名 -->
+	<select id="findEmployeeStudyTimeNo" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		SELECT case when a.rowNo is null then 0 else a.rowNo end from(SELECT (@rowNum :=@rowNum + 1) AS
+		rowNo,employee_id FROM v_business_study_count,(SELECT(@rowNum := 0)) b order by studyTime asc) as a where a.employee_id =
+		#{employeeId}
+	</select>
+	
+	<!-- 查询学员学习时长最大值-->
+	<select id="findStudyTimeMax" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		SELECT studyTime FROM v_business_study_count ORDER BY studyTime DESC limit 1 
+	</select>
+	<!-- 查询学员学习时长最大值-->
+	<select id="findStudyTimeMin" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		SELECT studyTime FROM v_business_study_count ORDER BY studyTime asc limit 1 
+	</select>
+	
+	<!-- 查询学员学习时间排名前20名列表 -->
+	<select id="findStudyTimeRankingList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Employee">
+		SELECT employee_id as employeeId,avatar,`name`,studyTime FROM v_business_study_count ORDER BY studyTime DESC
+		limit 0,20
+	</select>
+</mapper>

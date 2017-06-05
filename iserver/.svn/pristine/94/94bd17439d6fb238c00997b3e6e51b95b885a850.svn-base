@@ -1,0 +1,1042 @@
+package cn.ichazuo.service;
+
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.SortedMap;
+
+import javax.annotation.Resource;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseService;
+import cn.ichazuo.commons.component.CacheInfo;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.component.RedisClient;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.commons.util.sms.HttpSend;
+import cn.ichazuo.commons.util.sms.MD5;
+import cn.ichazuo.dao.CommonDao;
+import cn.ichazuo.model.app.BusinessFeedBack;
+import cn.ichazuo.model.app.CatalogCourseList;
+import cn.ichazuo.model.app.Comment;
+import cn.ichazuo.model.app.CommentPraise;
+import cn.ichazuo.model.app.DictItem;
+import cn.ichazuo.model.app.FirstType;
+import cn.ichazuo.model.app.Images;
+import cn.ichazuo.model.app.KeyWords;
+import cn.ichazuo.model.app.MemberPayInfo;
+import cn.ichazuo.model.app.OnlineCourseCommentInfo;
+import cn.ichazuo.model.app.OnlineCourseListInfo;
+import cn.ichazuo.model.app.UserInfo;
+import cn.ichazuo.model.app.WebJobInfo;
+import cn.ichazuo.model.app.WebOfflineCourseInfo;
+import cn.ichazuo.model.table.ArticleCommentFavour;
+import cn.ichazuo.model.table.Catalog;
+import cn.ichazuo.model.table.CourseWebInfo;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.FeedBack;
+import cn.ichazuo.model.table.Question;
+import cn.ichazuo.model.table.SecondCatalog;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.Version;
+import cn.ichazuo.model.app.QuestionListInfo;
+import cn.ichazuo.model.app.Recommend;
+import cn.ichazuo.model.app.SecondCatalogCourseList;
+import cn.ichazuo.model.app.SecondType;
+import cn.ichazuo.model.app.StudyDetail;
+import cn.ichazuo.model.app.StudyPlan;
+import cn.jpush.api.JPushClient;
+import cn.jpush.api.common.APIConnectionException;
+import cn.jpush.api.common.APIRequestException;
+import cn.jpush.api.push.PushResult;
+import cn.jpush.api.push.model.Message;
+import cn.jpush.api.push.model.Options;
+import cn.jpush.api.push.model.Platform;
+import cn.jpush.api.push.model.PushPayload;
+import cn.jpush.api.push.model.audience.Audience;
+import cn.jpush.api.push.model.notification.IosNotification;
+import cn.jpush.api.push.model.notification.Notification;
+
+/**
+ * @ClassName: BusinessService
+ * @Description: (通用Service)
+ * @author ZhaoXu
+ * @date 2015年7月18日 下午10:13:58
+ * @version V1.0
+ */
+@Service("businessService")
+public class BusinessService extends BaseService {
+	private static final long serialVersionUID = 1L;
+	@Resource
+	private CommonDao commonDao;
+	@Autowired
+	private CodeService codeService;
+	@Autowired
+	private ConfigInfo configInfo;
+	@Autowired
+	private RedisClient redisClient;
+	@Autowired
+	private CacheInfo cacheInfo;
+
+	/**
+	 * 查询课程分类列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<Catalog> findCatalogList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<Catalog> infos = commonDao.findCatalogList(par.getMap());
+        // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	
+	/**
+	 * 查询课程一级分类下课程总数
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public int findCatalogListCourseCount(Long catalogId){
+		Params params = new Params();
+		params.putData("catalogId", catalogId);
+        // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return commonDao.findCatalogListCourseCount(params.getMap());
+	}
+	
+	/**
+	 * 查询课程一级分类下课程总数
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public int findCatalogListStudyCount(Long catalogId){
+		Params params = new Params();
+		params.putData("catalogId", catalogId);
+        // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return commonDao.findCatalogListStudyCount(params.getMap());
+	}
+	/**
+	 * 查询课程分类列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<Catalog> findParentCatalogList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<Catalog> infos = commonDao.findParentCatalogList(par.getMap());
+        // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	
+	/**
+	 * 根据一级分类Id查询课程二级分类分类列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<SecondCatalog> findSecondCatalogList(Page page,Long parentId){
+		Params par = new Params(page.getNowPage());
+		par.putData("parentId", parentId);
+		List<SecondCatalog> infos = commonDao.findSecondCatalogList(par.getMap());
+        // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	/**
+	 * 查询课程分类列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<Catalog> findPersonCatalogList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<Catalog> infos = commonDao.findPersonCatalogList(par.getMap());
+        // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> getCatalogCourseList(Long id){
+		List<CatalogCourseList> infos = commonDao.getCatalogCourseList(id);
+		 // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<SecondCatalogCourseList> getSecondCatalogCourseList(Long id){
+		List<SecondCatalogCourseList> infos = commonDao.getSecondCatalogCourseList(id);
+		 // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	/**
+	 * @Title: addStudyNumber 
+	 * @Description: (更新文章评论点赞) 
+	 * @param favour
+	 * @return
+	 */
+	public boolean addStudyNumber(Long courseId){
+		return commonDao.addStudyNumber(courseId) > 0;
+	}
+	
+	/**
+	 * @Title: addStudyDetail 
+	 * @Description: (添加学员学习的详细记录)
+	 * @param favour
+	 * @return
+	 */
+	public boolean addStudyDetail(Long courseId,Long employeeId,Long studyTime,Long isFinished,String status){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("studyTime", studyTime);
+		params.putData("isFinished", isFinished);
+		params.putData("status", "1");
+		return commonDao.addStudyDetail(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: findStudyDetail 
+	 * @Description: (查询学员是否已经完成过此课程)
+	 * @param favour
+	 * @return
+	 */
+	public List<StudyDetail>  findStudyDetail(Long courseId,Long employeeId,Long isFinished){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("isFinished", isFinished);
+		return commonDao.findStudyDetail(params.getMap());
+	}
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCatalogCourseList(int keyWords,int timeLength,int level,Page page){
+		Params params = new Params(page.getNowPage());
+		int max=timeLength+10;
+//		if(timeLength!=0){
+//			max = timeLength+10;
+//		}
+		if(keyWords==999){
+			params.putData("keyWords", null);
+		}else{
+			params.putData("keyWords", keyWords);
+		}
+		if(level==999){
+			params.putData("level", null);
+		}else{
+			params.putData("level", level);
+		}
+//		params.putData("keyWords", keyWords);
+		if(timeLength==999){
+			params.putData("timeLength", null);
+		}else{
+			if(timeLength==5){
+				params.putData("max", timeLength);
+				params.putData("timeLength", 0);
+			}
+			if(timeLength==10){
+				params.putData("max", timeLength);
+				params.putData("timeLength", 5);
+			}
+			if(timeLength==20){
+				params.putData("max", timeLength);
+				params.putData("timeLength", 10);
+			}
+			if(timeLength==30){
+				params.putData("max", 10000);
+				params.putData("timeLength", 20);
+			}
+		}
+//		params.putData("level", level);
+		List<CatalogCourseList> infos = commonDao.findCatalogCourseList(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+/**
+ * 查询试题列表的子目录标题
+ * @param  父级标题 id
+ * @return 子标题目录
+ */
+public List<CatalogCourseList> findCatalogCourseListByType(int firstTypeId,int secondTypeId,int timeLength,int level,Page page){
+	Params params = new Params(page.getNowPage());
+	int max=timeLength+10;
+//	if(timeLength!=0){
+//		max = timeLength+10;
+//	}
+	//课程一级分类
+	if(firstTypeId==999){
+		params.putData("firstTypeId", null);
+	}else{
+		params.putData("firstTypeId", firstTypeId);
+	}
+	//课程二级分类
+	if(secondTypeId==999){
+		params.putData("secondTypeId", null);
+	}else{
+		params.putData("secondTypeId", secondTypeId);
+	}
+	//课程级别
+	if(level==999){
+		params.putData("level", null);
+	}else{
+		params.putData("level", level);
+	}
+//	params.putData("keyWords", keyWords);
+	//课程时长
+	if(timeLength==999){
+		params.putData("timeLength", null);
+	}else{
+		if(timeLength==5){
+			params.putData("max", timeLength);
+			params.putData("timeLength", 0);
+		}
+		if(timeLength==10){
+			params.putData("max", timeLength);
+			params.putData("timeLength", 5);
+		}
+		if(timeLength==20){
+			params.putData("max", timeLength);
+			params.putData("timeLength", 10);
+		}
+		if(timeLength==30){
+			params.putData("max", 10000);
+			params.putData("timeLength", 20);
+		}
+	}
+//	params.putData("level", level);
+	List<CatalogCourseList> infos = commonDao.findCatalogCourseListByType(params.getMap());
+	// 截取时间字符串
+	return infos;
+}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findPersonCatalogCourseList(int keyWords,int timeLength,int level,Page page){
+		Params params = new Params(page.getNowPage());
+		int max=timeLength+10;
+//		if(timeLength!=0){
+//			max = timeLength+10;
+//		}
+		if(keyWords==999){
+			params.putData("keyWords", null);
+		}else{
+			params.putData("keyWords", keyWords);
+		}
+		if(level==999){
+			params.putData("level", null);
+		}else{
+			params.putData("level", level);
+		}
+//		params.putData("keyWords", keyWords);
+		if(timeLength==999){
+			params.putData("timeLength", null);
+		}else{
+			if(timeLength==5){
+				params.putData("max", timeLength);
+				params.putData("timeLength", 0);
+			}
+			if(timeLength==10){
+				params.putData("max", timeLength);
+				params.putData("timeLength", 5);
+			}
+			if(timeLength==20){
+				params.putData("max", timeLength);
+				params.putData("timeLength", 10);
+			}
+			if(timeLength==30){
+				params.putData("max", 10000);
+				params.putData("timeLength", 20);
+			}
+		}
+//		params.putData("level", level);
+		List<CatalogCourseList> infos = commonDao.findPersonCatalogCourseList(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	/**
+	 * 查询数据字典
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<DictItem> findDictItemList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<DictItem> infos = commonDao.findDictItemList(par.getMap());
+		return infos;
+	}
+	
+	/**
+	 * @Title: 查询学习计划是否已存在
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<StudyPlan> queryStudyPlan(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyPlan(params.getMap());
+	}
+	/**
+	 * @Title: 查询学习计划是否之前存在过
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<StudyPlan> queryStudyPlanExist(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyPlanExist(params.getMap());
+	}
+	/**
+	 * @Title: 添加学习计划 
+	 * @Description: (添加学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean saveStudyPlan(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("status", "1");
+		return commonDao.saveStudyPlan(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: 更新学习计划 
+	 * @Description: (更新学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateStudyPlan(Long studyPlanId){
+		Params params = new Params();
+		params.putData("id", studyPlanId);
+		return commonDao.updateStudyPlan(params.getMap()) > 0;
+	}
+	/**
+	 * @Title: 更新学习计划 
+	 * @Description: (更新学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateStudyPlan(Long studyPlanId,Long isFinished){
+		Params params = new Params();
+		params.putData("id", studyPlanId);
+		params.putData("isFinished", isFinished);
+		return commonDao.updateStudyPlanById(params.getMap()) > 0;
+	}
+	/**
+	 * @Title: 根据学员ID查询学习计划
+	 * @Description: (根据学员ID查询学习计划)
+	 * @param favour
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyPlanList(Page page,Long employeeId){
+//		Params params = new Params();
+		Params par = new Params(page.getNowPage());
+		par.putData("employeeId", employeeId);
+		return commonDao.queryStudyPlanList(par.getMap());
+	}
+	/**
+	 * @Title: 根据学员ID查询学习计划
+	 * @Description: (根据学员ID查询学习计划)
+	 * @param favour
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyPlanList(Long employeeId){
+		Params params = new Params();
+//		Params par = new Params(page.getNowPage());
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyPlanListCount(params.getMap());
+	}
+	/**
+	 * @Title: 查询学习计划是否已存在
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<Recommend> queryRecommend(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryRecommend(params.getMap());
+	}
+	/**
+	 * @Title: 查询学习计划是否已存在
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<Recommend> queryRecommendExist(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryRecommendExist(params.getMap());
+	}
+	/**
+	 * @Title: 添加学习计划 
+	 * @Description: (添加学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean saveRecommend(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("status", "1");
+		return commonDao.saveRecommend(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: 更新课程推荐状态
+	 * @Description: (更新课程推荐状态)
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateRecommend(Long recommendId){
+		Params params = new Params();
+		params.putData("id", recommendId);
+		return commonDao.updateRecommend(params.getMap()) > 0;
+	}
+	
+	/**
+	 * 查询数据字典
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<KeyWords> findKeyWordsList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<KeyWords> infos = commonDao.findKeyWordsList(par.getMap());
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCourseListByKeyWords(String keyWords,Page page){
+		Params params = new Params(page.getNowPage());
+		params.putData("keyWords", super.fuzzy(keyWords));
+		List<CatalogCourseList> infos = commonDao.findCourseListByKeyWords(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	/**
+	 * 查询课程讲师列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<CatalogCourseList> findTeachersList(){
+		Params params = new Params();
+		List<CatalogCourseList> infos = commonDao.findTeachersList(params.getMap());
+		return infos;
+	}
+	/**
+	 * 根据讲师查询课程列表
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCourseListByTeacher(String teacher,Page page){
+		Params params = new Params(page.getNowPage());
+		params.putData("teacher", teacher);
+		List<CatalogCourseList> infos = commonDao.findCourseListByTeacher(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	/**
+	 * @Title: findOnlineCourseContent 
+	 * @Description: (查询线上课程简介) 
+	 * @param id
+	 * @return
+	 */
+	public Employee findEmployeeDetail(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		Employee infos = commonDao.findEmployeeDetail(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	
+	/**
+	 * @Title: findEmployeeDetailByDeviceId 
+	 * @Description: (根据是设备号查询用户信息) 
+	 * @param id
+	 * @return
+	 */
+	public Employee findEmployeeDetailByDeviceId(String deviceId){
+		Params params = new Params();
+		params.putData("deviceId", deviceId);
+		Employee infos = commonDao.findEmployeeDetailByDeviceId(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	
+	/**
+	 * @Title: findOnlineCourseContent 
+	 * @Description: (查询线上课程简介) 
+	 * @param id
+	 * @return
+	 */
+	public int findEmployeePlanCount(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findEmployeePlanCount(params.getMap());
+		// 截取时间字符串
+		return count;
+	}
+	/**
+	 * @Title: findEmployeeStudyTimeCount 
+	 * @Description: (查询学员学习总时长) 
+	 * @param id
+	 * @return
+	 */
+	public int findEmployeeStudyTimeCount(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findEmployeeStudyTimeCount(params.getMap());
+		return count;
+	}
+	/**
+	 * @Title: saveBusinessFeedBack 
+	 * @Description: (保存企业用户意见反馈) 
+	 * @param feedBack
+	 */
+	public boolean saveBusinessFeedBack(BusinessFeedBack feedBack){
+		return commonDao.saveBusinessFeedBack(feedBack) > 0;
+	}
+	/**
+	 * @Title: 查询已经完成学习的课程列表
+	 * @Description: (查询已经完成学习的课程列表 )
+	 * @param employeeId 学员ID
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyFinishedList(Page page,Long employeeId){
+		Params params = new Params(page.getNowPage());
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyFinishedList(params.getMap());
+	}
+	/**
+	 * @Title: 查询已经完成学习的课程列表
+	 * @Description: (查询已经完成学习的课程列表 )
+	 * @param employeeId 学员ID
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyFinishedList(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyFinishedListCount(params.getMap());
+	}
+	/**
+	 * @Title: 查询已经完成学习的课程列表
+	 * @Description: (查询已经完成学习的课程列表 )
+	 * @param employeeId 学员ID
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyIfFinished(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyIfFinished(params.getMap());
+	}
+	/**
+	 * @Title: findOnlineCourseDetailById 
+	 * @Description: (查询线上课程简介) 
+	 * @param id
+	 * @return
+	 */
+	public CatalogCourseList findOnlineCourseDetailById(Long id){
+		Params params = new Params();
+		params.putData("id", id);
+		CatalogCourseList online = commonDao.findOnlineCourseDetailById(params.getMap());
+//		Calendar calendar = Calendar.getInstance();
+//		calendar.setTime(online.getPlayStartTime());
+//		calendar.add(Calendar.MINUTE, online.getTimeLength());
+//		
+////		Date nowTime = DateUtils.getNowDate();
+//		
+//		String content =courseDao.findOnlineCoursePPT(id);
+//		if(online.getPlayStartTime().before(nowTime)  && calendar.getTime().after(nowTime)){
+//			//直播
+//			content = courseDao.findOnlineCoursePPT(id);
+//			if(StringUtils.isNullOrEmpty(content)){
+//				content = courseDao.findOnlineCourseContent(id);
+//			}
+//			
+//		}else if(online.getPlayStartTime().after(nowTime)){
+//			//预告
+//			content = courseDao.findOnlineCourseContent(id);
+//		}else{
+//			//往期
+//			content = courseDao.findOnlineCourseBack(id);
+//			if(StringUtils.isNullOrEmpty(content)){
+//				content = courseDao.findOnlineCoursePPT(id);
+//			}
+//			if(StringUtils.isNullOrEmpty(content)){
+//				content = courseDao.findOnlineCourseContent(id);
+//			}
+//		}
+		return online;
+	}
+	
+	/**
+	 * @Title: addMemberPayDetail 
+	 * @Description: (添加会员购买的详细记录)
+	 * @param favour
+	 * @return
+	 */
+	public boolean addMemberPayDetail(Long price,Long employeeId,Long memberType){
+		Params params = new Params();
+		params.putData("price", price);
+		params.putData("employeeId", employeeId);
+		params.putData("memberType", memberType);
+		if(memberType==2){
+			params.putData("month", 12);
+		}else if(memberType==1){
+			params.putData("month", 6);
+		}else{
+			params.putData("month", 1);
+		}
+		return commonDao.addMemberPayDetail(params.getMap()) > 0;
+	}
+	public MemberPayInfo queryMemberPayDetail(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		return commonDao.queryMemberPayDetail(params.getMap());
+	}
+	
+	/**
+	 * @Title: updateEmployeeDetailByDeviceId 
+	 * @Description: (删除匿名会员用户信息)
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateEmployeeDetailByDeviceId(Long id){
+		Params params = new Params();
+		params.putData("id", id);
+		return commonDao.updateEmployeeDetailByDeviceId(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: updateMemberPayById 
+	 * @Description: (将匿名会员用户信息下的会员记录转移到手机号码用户名下)
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateMemberPayById(Long employeeId,Long oldEmployeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		params.putData("oldEmployeeId", oldEmployeeId);
+		return commonDao.updateMemberPayById(params.getMap()) > 0;
+	}
+	/**
+	 * @Title: updateMemberPay 
+	 * @Description: (更新购买会员的订单状态)
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateMemberPay(Long id){
+		Params params = new Params();
+		params.putData("id", id);
+		return commonDao.updateMemberPay(params.getMap()) > 0;
+	}
+	/**
+	 * @Title: queryMemberPayByEmployeeId 
+	 * @Description: (根据用户ID查询会员开始时间)
+	 * @param favour
+	 * @return
+	 */
+	public MemberPayInfo queryMemberPayByEmployeeId(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		return commonDao.queryMemberPayByEmployeeId(params.getMap());
+	}
+	
+	/**
+	 * @Title: queryMonthCountByEmployeeId 
+	 * @Description: (根据用户ID查询会员开始时间)
+	 * @param favour
+	 * @return
+	 */
+	public Long queryMonthCountByEmployeeId(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		return commonDao.queryMonthCountByEmployeeId(params.getMap());
+	}
+	/**
+	 * 查询数据字典
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<FirstType> findFirstTypeList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<FirstType> infos = commonDao.findFirstTypeList(par.getMap());
+		return infos;
+	}
+	/**
+	 * 查询数据字典
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<SecondType> findSecondTypeList(Long parentId){
+		Params par = new Params();
+		par.putData("parentId", parentId);
+		List<SecondType> infos = commonDao.findSecondTypeList(par.getMap());
+		return infos;
+	}
+	
+	/**
+	 * @Title: addCourseComment 
+	 * @Description: (添加学员课程评论)
+	 * @param 
+	 * @return
+	 */
+	public boolean addCourseComment(Long courseId,Long employeeId,String comment){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("comment", comment);
+		return commonDao.addCourseComment(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: addCourseComment 
+	 * @Description: (添加学员课程评论)
+	 * @param 
+	 * @return
+	 */
+	public List<Comment> findCourseCommentList(Long courseId,Page page){
+		Params params = new Params(page.getNowPage());
+		params.putData("courseId", courseId);
+		return commonDao.findCourseCommentList(params.getMap());
+	}
+	/**
+	 * @Title: 查询是否已经点赞过
+	 * @Description: (查询是否已经点赞过 )
+	 * @param favour
+	 * @return
+	 */
+	public List<CommentPraise> queryCommentPraise(Long commentId,Long employeeId){
+		Params params = new Params();
+		params.putData("commentId", commentId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryCommentPraise(params.getMap());
+	}
+	/**
+	 * @Title: 查询学习计划是否之前存在过
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<CommentPraise> queryCommentPraiseExist(Long commentId,Long employeeId){
+		Params params = new Params();
+		params.putData("commentId", commentId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryCommentPraiseExist(params.getMap());
+	}
+	/**
+	 * @Title: 更新课程推荐状态
+	 * @Description: (更新课程推荐状态)
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateCommentPraise(Long praiseId){
+		Params params = new Params();
+		params.putData("id", praiseId);
+		return commonDao.updateCommentPraise(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: 添加学习计划 
+	 * @Description: (添加学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean saveCommentPraise(Long commentId,Long employeeId){
+		Params params = new Params();
+		params.putData("commentId", commentId);
+		params.putData("employeeId", employeeId);
+		params.putData("status", "1");
+		return commonDao.saveCommentPraise(params.getMap()) > 0;
+	}
+	/**
+	 * @Title: 更新评论点赞数量
+	 * @Description: (更新评论点赞数量)
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateCommentPraiseNum(String addNum,Long commentId){
+		Params params = new Params();
+		params.putData("id", commentId);
+		params.putData("addNum", addNum);
+		return commonDao.updateCommentPraiseNum(params.getMap()) > 0;
+	}
+	/**
+	 * 根据课程名称查询课程列表
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCourseListByTitle(String title,Page page){
+		Params params = new Params(page.getNowPage());
+		params.putData("title", super.fuzzy(title));
+		List<CatalogCourseList> infos = commonDao.findCourseListByTitle(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	
+	/**
+	 * @Title: findEmployeeStudyTimeCount 
+	 * @Description: (查询学员学习总时长在排名中的位置) 
+	 * @param id
+	 * @return
+	 */
+	public String findEmployeeStudyTimeNo(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		String count = commonDao.findEmployeeStudyTimeNo(params.getMap());
+		return count;
+	}
+	
+	/**
+	 * @Title: findEmployeeStudyCount 
+	 * @Description: (查询学员学习时长总学习人数) 
+	 * @param id
+	 * @return
+	 */
+	public int findEmployeeStudyCount(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findEmployeeStudyCount(params.getMap());
+		return count;
+	}
+	
+	/**
+	 * @Title: findStudyTimeMax 
+	 * @Description: (查询学员学习时长最长的时间) 
+	 * @param id
+	 * @return
+	 */
+	public int findStudyTimeMax(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findStudyTimeMax(params.getMap());
+		return count;
+	}
+	
+	/**
+	 * @Title: findStudyTimeMin 
+	 * @Description: (查询学员学习时长最短的时间) 
+	 * @param id
+	 * @return
+	 */
+	public int findStudyTimeMin(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findStudyTimeMin(params.getMap());
+		return count;
+	}
+	
+	/**
+	 * 根据讲师查询课程列表
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<Employee> findStudyTimeRankingList(){
+		Params params = new Params();
+		params.putData("employeeId", "20");
+		List<Employee> infos = commonDao.findStudyTimeRankingList(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+}

@@ -1,0 +1,2 @@
+2015-12-23 20:15:57  [ main:0 ] - [ ERROR ]  D:\Java\Code\iserver\target\classes\cn\ichazuo\commons\authorize\authorize.xml (系统找不到指定的文件。) Nested exception: D:\Java\Code\iserver\target\classes\cn\ichazuo\commons\authorize\authorize.xml (系统找不到指定的文件。)
+2015-12-23 20:19:20  [ main:0 ] - [ ERROR ]  D:\Java\Code\iserver\target\classes\abc.xml\authorize.xml (系统找不到指定的路径。) Nested exception: D:\Java\Code\iserver\target\classes\abc.xml\authorize.xml (系统找不到指定的路径。)

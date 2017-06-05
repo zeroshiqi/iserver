@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<resource xsi:noNamespaceSchemaLocation="cn/ichazuo/commons/xsd/authorize.xsd"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<!-- include只能在group层外面 -->
+	<!-- 使用示例:<include file="test.xml" /> -->
+	<!-- icon: 1.新增:add 2.编辑:edit 3.删除:remove 4.查找:search 5.后退:back 6.取消:cancel 
+		7.清除:clear 8.保存:save 9.剪切:cut 10.OK:ok 11:NO:no 12.刷新:reload 13.打印:print 
+		14.帮助:help 15.返回:undo 16.前进:redo 17.提示:tip -->
+	<group id="BASE" name="基础设置" weight="99">
+		<properties id="USER_BASE" name="用户管理" title="用户管理" action="/admin/user"
+			showMenu="true" weight="1">
+			<button id="SAVE_USER_BASE" name="新增用户" icon="add"
+				function="showuserWindow()" />
+			<button id="UPDATE_USER_BASE" name="编辑用户" icon="edit"
+				function="editRecord()" />
+			<button id="REMOVE_USER_BASE" name="删除用户" icon="remove"
+				function="deleteUser()" />
+		</properties>
+		<properties id="ROLE_BASE" name="角色管理" title="角色管理" action="/admin/role"
+			showMenu="true" weight="2">
+			<button id="SAVE_ROLE_BASE" name="新增角色" icon="add"
+				function="showroleWindow()" />
+			<button id="UPDATE_ROLE_BASE" name="编辑角色" icon="edit"
+				function="editRecord()" />
+			<button id="REMOVE_ROLE_BASE" name="删除角色" icon="remove"
+				function="deleteRole()" />
+		</properties>
+		<properties id="DICT_BASE" name="字典管理" title="字典管理" action="/admin/dict"
+			showMenu="true" weight="3">
+			<button id="SAVE_DICT_BASE" name="新增字典" icon="add"
+				function="showdictWindow()" />
+			<button id="REMOVE_DICT_BASE" name="删除字典" icon="remove"
+				function="deleteDict()" />
+			<button id="MANAGE_DICT_BASE" name="管理数据" icon="redo"
+				function="findItem()" />
+		</properties>
+		<properties id="DICT_ITEM_BASE" name="字典项管理" title="字典项管理"
+			action="/admin/dictitem" weight="5">
+			<button id="SAVE_DICT_ITEM_BASE" name="新增字典" icon="add"
+				function="showdictWindow()" />
+			<button id="REMOVE_DICT_ITEM_BASE" name="删除字典" icon="remove"
+				function="deleteDict()" />
+			<button id="BACK_DICT_ITEM_BASE" name="返回字典" icon="redo"
+				function="backDict()" />
+		</properties>
+		<properties id="AUTHOR_BASE" name="权限设置" title="权限管理"
+			action="/admin/authorize" showMenu="true" weight="4" />
+		<properties id="USERLOG_BASE" name="操作日志" title="操作日志"
+			action="/admin/userLog" showMenu="true" weight="5" />
+	</group>
+	<group id="ADMIN" name="数据管理" weight="1">
+		<properties id="PLAY_ADDRESS_ADMIN" name="播放地址管理" title="播放地址管理"
+			action="/admin/playaddress" showMenu="true" weight="5">
+			<button id="SAVE_PLAY_ADDRESS_ADMIN" name="新增播放地址" icon="add"
+				function="showaddressWindow()" />
+			<button id="UPDATE_PLAY_ADDRESS_ADMIN" name="编辑播放地址" icon="edit"
+				function="editRecord()" />
+			<button id="REMOVE_PLAY_ADDRESS_ADMIN" name="删除播放地址" icon="remove"
+				function="deleteAddress()" />
+		</properties>
+		<properties id="MEMBER_ADMIN" name="会员管理" title="会员管理"
+			action="/admin/member" showMenu="true" weight="1">
+			<button id="ADD_MEMBER_ADMIN" name="新增会员" icon="add"
+				function="showmemberWindow()" />
+			<button id="UPDATE_MEMBER_ADMIN" name="编辑用户" icon="edit"
+				function="editRecord()" />
+			<button id="STATUS_MEMBER_ADMIN" name="禁用/启用" icon="reload"
+				function="updateStatus()" />
+		</properties>
+		<properties id="OFFLINECOURSE_ADMIN" name="线下课程管理" title="课程管理"
+			action="/admin/offline" showMenu="true" weight="2">
+			<button id="ADD_OFFLINECOURSE_ADMIN" name="新增课程" icon="add"
+				function="showCourseWindow()" />
+			<button id="UPDATE_OFFLINECOURSE_ADMIN" name="编辑课程" icon="edit"
+				function="editRecord()" />
+			<button id="REMOVE_OFFLINECOURSE_ADMIN" name="删除课程" icon="remove"
+				function="deleteCourse()" />
+			<button id="IMAGE_OFFLINECOURSE_ADMIN" name="管理图片" icon="redo"
+				function="showimageList()" />
+		</properties>
+		<properties id="ONLINECOURSE_ADMIN" name="线上课程管理" title="课程管理"
+			action="/admin/online" weight="2">
+			<button id="ADD_ONLINECOURSE_ADMIN" name="新增课程" icon="add"
+				function="showCourseWindow()" />
+			<button id="UPDATE_ONLINECOURSE_ADMIN" name="编辑课程" icon="edit"
+				function="editRecord()" />
+			<button id="REMOVE_ONLINECOURSE_ADMIN" name="删除课程" icon="remove"
+				function="deleteCourse()" />
+			<button id="FILE_ONLINECOURSE_ADMIN" name="上传文件" icon="tip"
+				function="showFileWindow()" />
+		</properties>
+		<properties id="OFFLINECOURSEIMAGE_ADMIN" name="线下课程图片管理"
+			title="线下课程图片管理" action="/admin/courseImage" weight="3">
+			<button id="SAVE_OFFLINECOURSEIMAGE_ADMIN" name="新增图片" icon="add"
+				function="showimageWindow()" />
+			<button id="UPDATE_OFFLINECOURSEIMAGE_ADMIN" name="修改图片" icon="edit"
+				function="editRecord()" />
+			<button id="REMOVE_OFFLINECOURSEIMAGE_ADMIN" name="删除图片" icon="remove"
+				function="deleteImage()" />
+			<button id="BACK_OFFLINECOURSEIMAGE_ADMIN" name="返回" icon="undo"
+				function="back()" />
+		</properties>
+	</group>
+</resource>

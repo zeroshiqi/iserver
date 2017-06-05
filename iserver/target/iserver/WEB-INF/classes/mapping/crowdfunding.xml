@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.CrowdfundingDao">
+	<!-- uuid换取id -->
+	<select id="findCrowdfundIdByUUId" parameterType="java.lang.String"
+		resultType="java.lang.Long">
+		select id from t_course_web_crowdfunding where uuid =
+		#{uuid} limit 1
+	</select>
+	<select id="findCrowdfundUUIDById" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select uuid from t_course_web_crowdfunding where id = #{id}
+		limit 1
+	</select>
+	<!-- 查询众筹 -->
+	<select id="findUserCrowdfundInfo" resultType="cn.ichazuo.model.table.CourseWebCrowdfunding"
+		parameterType="java.util.Map">
+		select id,course_id as
+		courseId,number,nickname,price,content,uuid,status,avatar,felicitate,create_at
+		as createAt,ifnull(weixin_sex,'1') as weixinSex,refund from
+		t_course_web_crowdfunding where union_id = #{unionId} and course_id =
+		#{courseId} and `status` != 0 and status != 3 order by id desc limit 1
+	</select>
+	<update id="updateUserCrowdfundWeixinInfo" parameterType="java.util.Map">
+		update
+		t_course_web_crowdfunding set version = version + 1,update_at =
+		now(),nickname = #{nickName},avatar = #{avatar},weixin_sex = #{sex}
+		where id = #{id}
+	</update>
+	<!-- 查询众筹信息 -->
+	<select id="findUserCrowdfundInfoByUUID" resultType="cn.ichazuo.model.table.CourseWebCrowdfunding"
+		parameterType="java.lang.String">
+		select id,course_id as
+		courseId,number,nickname,price,content,uuid,union_id as unionId from
+		t_course_web_crowdfunding where uuid = #{uuid} and `status` != 0 and
+		status != 3
+	</select>
+
+	<!-- 保存众筹信息 -->
+	<insert id="saveCrowdfundInfo" parameterType="cn.ichazuo.model.table.CourseWebCrowdfunding"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_course_web_crowdfunding(course_id,number,price,content,union_id,uuid,create_at,status,nickname,avatar,weixin,phone)
+		values(#{courseId},#{number},#{price},#{content},#{unionId},#{uuid},now(),0,#{nickname},#{avatar},#{weixinInfo},#{phone})
+	</insert>
+
+	<!-- 保存要报名的用户 -->
+	<insert id="saveCrowdfundUser" parameterType="cn.ichazuo.model.table.CourseWebCrowdfundingUser">
+		insert into
+		t_course_web_crowdfunding_user(name,mobile,weixin,content,member_id,sex,crowdfund_id,create_at,work)
+		values(#{name},#{mobile},#{weixin},#{content},#{memberId},#{sex},#{crowdfundId},now(),#{work})
+	</insert>
+
+	<!-- 修改众筹内容 -->
+	<update id="updateCrowdfundingContent" parameterType="java.util.Map">
+		update
+		t_course_web_crowdfunding set version = version + 1,status = 1,content
+		= #{content},create_at = now() where uuid = #{uuid}
+	</update>
+
+	<!-- 查询众筹日志 -->
+	<select id="findCrowdfundingLogList" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.CourseWebCrowdfundingLog">
+		select l.content,l.crowdfund_id as
+		crowdfundId,l.avatar,l.`name`,l.price,l.union_id as unionId from
+		t_course_web_crowdfunding_log l
+		left join t_course_web_crowdfunding d on d.id = l.crowdfund_id where
+		d.status != 0 and l.status = 1 and l.crowdfund_id = #{id}
+	</select>
+
+	<!-- 查询众筹信息 -->
+	<select id="findCrowdfundingInfo" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.app.CourseWebCrowdfundingInfo">
+		select c.id,c.course_id as
+		courseId,c.avatar,c.number,c.nickname,c.price,c.content,c.uuid,u.course_name
+		as title,c.create_at as createAt,c.status,c.refund from
+		t_course_web_crowdfunding c left join t_course u on u.id = c.course_id
+		where c.status != 0 and c.uuid = #{uuid}
+	</select>
+
+	<!-- 修改众筹状态 -->
+	<update id="updateCrowfundingStatus" parameterType="java.util.Map">
+		update
+		t_course_web_crowdfunding set status = #{status},version = version +
+		1,update_at = now() where id = #{id}
+	</update>
+
+	<!-- 查询意见众筹的金额 -->
+	<select id="findCrowdfundingPriceCount" parameterType="java.lang.String"
+		resultType="java.lang.Double">
+		select ifnull(sum(u.price),0) from
+		t_course_web_crowdfunding_log u left join t_course_web_crowdfunding c
+		on u.crowdfund_id = c.id where c.uuid = #{uuid} and u.status = 1
+	</select>
+
+	<!-- 保存日志 -->
+	<insert id="saveCrowdfundingLog" parameterType="cn.ichazuo.model.table.CourseWebCrowdfundingLog">
+		insert into
+		t_course_web_crowdfunding_log(name,content,price,union_id,create_at,crowdfund_id,avatar,code,status,type)
+		values(#{name},#{content},#{price},#{unionId},now(),#{crowdfundId},#{avatar},#{code},#{status},#{type})
+	</insert>
+
+	<!-- 修改状态 -->
+	<update id="updateCrowdfundingLogStatus" parameterType="java.lang.String">
+		update
+		t_course_web_crowdfunding_log set status = 1,version = version +
+		1,update_at = now() where code=#{code}
+	</update>
+
+	<!-- 查询众筹日志信息 -->
+	<select id="findCrowdfundingLogInfo" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.CourseWebCrowdfundingLog">
+		select id,name,content,price,crowdfund_id as crowdfundId
+		from t_course_web_crowdfunding_log where code = #{code}
+	</select>
+
+	<!-- 保存支付众筹订单 -->
+	<insert id="saveCrowdfundingOrder" parameterType="cn.ichazuo.model.table.CourseWebCrowdfundingOrder">
+		insert into
+		t_course_web_crowdfunding_order(code,crowdfunding_id,price,ip,create_at)
+		values(#{code},#{crowdfundingId},#{price},#{ip},now())
+	</insert>
+
+	<!-- 根据订单号查询众筹订单 -->
+	<select id="findCrowdfundingOrderInfo" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.CourseWebCrowdfundingOrder">
+		select id,code,crowdfunding_id as crowdfundingId,price,ip
+		from t_course_web_crowdfunding_order where code = #{code}
+	</select>
+
+	<!-- 修改订单状态 -->
+	<update id="updateCrowdfundOrderStatus" parameterType="java.lang.Long">
+		update
+		t_course_web_crowdfunding_order set status = 1,version = version +
+		1,update_at = now() where id =#{id}
+	</update>
+
+	<!-- 查询用户信息 -->
+	<select id="findCrowdfundingUsers" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.CourseWebCrowdfundingUser">
+		select u.id,u.name,u.mobile,u.weixin,u.content,u.member_id
+		as memberId,u.sex,u.crowdfund_id as crowdfundId
+		from t_course_web_crowdfunding_user u where u.crowdfund_id = #{id}
+	</select>
+</mapper>

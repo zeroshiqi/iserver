@@ -1,0 +1,812 @@
+package cn.ichazuo.service;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.NameValuePair;
+import org.apache.commons.httpclient.methods.PostMethod;
+import org.apache.commons.httpclient.params.HttpMethodParams;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import cn.ichazuo.commons.base.BaseService;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.im.EasemobIMUsers;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.dao.MemberDao;
+import cn.ichazuo.model.Dictionary;
+import cn.ichazuo.model.admin.MemberListInfo;
+import cn.ichazuo.model.app.UserAllInfo;
+import cn.ichazuo.model.app.UserSimpleInfo;
+import cn.ichazuo.model.table.Code;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.LoginDetail;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.MemberFavour;
+import cn.ichazuo.model.table.MemberInfo;
+import cn.ichazuo.model.table.ThirdMember;
+
+/**
+ * @ClassName: MemberService 
+ * @Description: (注册用户Service) 
+ * @author ZhaoXu
+ * @date 2015年7月18日 下午10:22:04 
+ * @version V1.0
+ */
+@Service("memberService")
+public class MemberService extends BaseService{
+	private static final long serialVersionUID = 1L;
+
+	 //正则表达式,抽取手机归属地  
+    public static final String REGEX_GET_MOBILE=  
+        "(?is)(<tr[^>]+>[\\s]*<td[^>]+>[\\s]*卡号归属地[\\s]*</td>[\\s]*<td[^>]+>([^<]+)</td>[\\s]*</tr>)"; //2:from  
+    //正则表达式,审核要获取手机归属地的手机是否符合格式,可以只输入手机号码前7位  
+    public static final String REGEX_IS_MOBILE=  
+        "(?is)(^1[3|4|5|8][0-9]\\d{4,8}$)";  
+	
+	@Resource
+	private MemberDao memberDao;
+	@Autowired
+	private CodeService codeService;
+	@Autowired
+	private ConfigInfo configInfo;
+	@Autowired
+	private CommonService commonService;
+	
+	/**
+	 * @Title: findMemberByUnionId 
+	 * @Description: (根据联合ID查询用户信息) 
+	 * @param unionId
+	 * @return
+	 */
+	public Member findMemberByUnionId(String unionId){
+		return memberDao.findMemberByUnionId(unionId);
+	}
+	/**
+	 * @Title: saveMember 
+	 * @Description: (保存用户) 
+	 * @param member
+	 * @return
+	 */
+	public boolean saveMember(Member member){
+		return memberDao.saveMember(member) > 0;
+	}
+	
+	/**
+	 * @Title: saveMemberInfo 
+	 * @Description: (保存用户信息) 
+	 * @param memberInfo
+	 * @return
+	 */
+	public boolean saveMemberInfo(MemberInfo memberInfo){
+		return memberDao.saveMemberInfo(memberInfo) > 0;
+	}
+	
+	/**
+	 * @Title: findMemberById 
+	 * @Description: (根据ID查询注册用户) 
+	 * @param id 主键
+	 * @return
+	 */
+	public Member findMemberById(Long id){
+		return memberDao.findMemberById(id);
+	}
+	
+	/**
+	 * @Title: findLoginMemberByMobile 
+	 * @Description: (根据手机号查询登录用户) 
+	 * @param mobile
+	 * @return
+	 */
+	public Member findLoginMemberByMobile(String mobile){
+		return memberDao.findLoginMemberByMobile(mobile);
+	}
+	
+	
+	/**
+	 * @Title: findMemberInfoByMemberId 
+	 * @Description: (根据用户ID查询用户信息) 
+	 * @param memberId 用户ID
+	 * @return
+	 */
+	public MemberInfo findMemberInfoByMemberId(Long memberId){
+		return memberDao.findMemberInfoByMemberId(memberId);
+	}
+	
+	/**
+	 * @Title: updateMember 
+	 * @Description: (更新用户) 
+	 * @param member 用户
+	 * @return
+	 */
+	public boolean updateMember(Member member){
+		return memberDao.updateMember(member) > 0;
+	}
+	
+	/**
+	 * @Title: findOpenIdByMemberId 
+	 * @Description: (根据用户ID查询openId) 
+	 * @param memberId
+	 * @return
+	 */
+	public String findOpenIdByMemberId(Long memberId){
+		return memberDao.findOpenIdByMemberId(memberId);
+	}
+	
+	/**
+	 * @Title: updateThirdUnionId 
+	 * @Description: (修改第三方unionId) 
+	 * @param params
+	 * @return
+	 */
+	public boolean updateThirdUnionId(Params params){
+		return memberDao.updateThirdUnionId(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: updateMemberMobile 
+	 * @Description: (绑定手机号) 
+	 * @param params
+	 * @return
+	 */
+	public boolean updateMemberMobile(Params params,Code code){
+		codeService.updateCodeStatus(code);
+		return memberDao.updateMemberMobile(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: updateMemberInfo 
+	 * @Description: (更新用户信息) 
+	 * @param memberInfo 用户信息
+	 * @return
+	 */
+	public boolean updateMemberInfo(MemberInfo memberInfo){
+		return memberDao.updateMemberInfo(memberInfo) > 0;
+	}
+	
+	/**
+	 * @Title: register 
+	 * @Description: (注册用户,保存用户信息) 
+	 * @param member 用户
+	 * @param code 注册码
+	 */
+	public boolean register(Member member,Code code,String work){
+		//保存用户主信息
+		if(memberDao.saveMember(member) > 0){
+			MemberInfo info = getDefaultMemberInfo();
+			if(StringUtils.isNotNull(work)){
+				info.setCompanyName(work);
+			}
+			info.setMemberId(member.getId());
+			//保存用户其他信息
+			if(memberDao.saveMemberInfo(info) > 0 && codeService.updateCodeStatus(code)){
+				//注册环信IM
+				if(!configInfo.getProjectTest()){
+					//不为测试环境 -> 注册环信
+					saveIMUser(member.getId());
+				}else{
+					//测试环信 -> 注册测试app环信
+					saveTestImUser(member.getId());
+				}
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * @Title: findThirdMember 
+	 * @Description: (根据mark和openId查询第三方用户) 
+	 * @param mark 第三方标识
+	 * @param openId 第三方ID
+	 * @return
+	 */
+	public ThirdMember findThirdMember(Integer mark,String openId){
+		Params params = new Params();
+		params.putData("mark", mark);
+		params.putData("openId", openId);
+		return memberDao.findThirdMemberByParams(params.getMap());
+	}
+	
+	/**
+	 * @Title: boundThird 
+	 * @Description: (第三方用户绑定手机) 
+	 * @param third 第三方用户
+	 * @param member 注册会员
+	 * @param flag 是否新建会员
+	 */
+	public boolean boundThird(ThirdMember third,Member member,boolean flag){
+		if(flag){
+			if(memberDao.saveMember(member) > 0){
+				MemberInfo info = getDefaultMemberInfo();
+				info.setMemberId(member.getId());
+				third.setMemberId(member.getId());
+				return memberDao.saveMemberInfo(info) > 0 && memberDao.updateThirdMember(third) > 0;
+			}
+			return false;
+		}else{
+			third.setMemberId(member.getId());
+			return memberDao.updateMember(member) > 0 && memberDao.updateThirdMember(third) > 0;
+		}
+	}
+	
+	/**
+	 * @Title: saveThirdMember 
+	 * @Description: (保存第三方用户) 
+	 * @param member
+	 */
+	public boolean saveThirdMember(ThirdMember member){
+		return memberDao.saveThirdMember(member) > 0;
+	}
+	
+	/**
+	 * @Title: updateThirdMember 
+	 * @Description: (修改第三方用户) 
+	 * @param member
+	 * @return
+	 */
+	public boolean 	updateThirdMember(ThirdMember member){
+		return memberDao.updateThirdMember(member) > 0;
+	}
+	
+	/**
+	 * @Title: saveThirdMemberV2 
+	 * @Description: (保存第三方登录用户,并生成用户信息) 
+	 * @param member 用户信息
+	 * @param thrid 第三方
+	 * @param status 状态 是否为新增
+	 * @return
+	 */
+	public boolean saveThirdMemberV2(ThirdMember third, Member member,boolean status) {
+		if (memberDao.saveMember(member) > 0) {
+			MemberInfo info = getDefaultMemberInfo();
+			info.setMemberId(member.getId());
+			// 保存用户其他信息
+			if (memberDao.saveMemberInfo(info) > 0) {
+				// 注册环信IM
+				if (!configInfo.getProjectTest()) {
+					// 不为测试环境 -> 注册环信
+					saveIMUser(member.getId());
+				} else {
+					// 测试环信 -> 注册测试app环信
+					saveTestImUser(member.getId());
+				}
+				
+				third.setMemberId(member.getId());
+				if(status){
+					return memberDao.saveThirdMember(third) > 0;
+				}else{
+					return memberDao.updateThirdMember(third) > 0;
+				}
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * @Title: resetPassword 
+	 * @Description: (重置密码) 
+	 * @param code 验证码
+	 * @param member 用户
+	 */
+	public boolean resetPassword(Code code,Member member){
+		return memberDao.updateMember(member) > 0 && codeService.updateCodeStatus(code);
+	}
+	
+	/**
+	 * @Title: findFavourCount 
+	 * @Description: (查询点赞数量) 
+	 * @param memberId 我的ID
+	 * @param flag 是否为查看别人赞我
+	 * @return
+	 */
+	public Integer findFavourCount(Long memberId,boolean flag){
+		Params params = new Params();
+		if(flag){
+			params.putData("toMemberId", memberId);
+		}else{
+			params.putData("fromMemberId", memberId);
+		}
+		return memberDao.findMemberFavourCount(params.getMap());
+	}
+	
+	/**
+	 * @Title: findFavour 
+	 * @Description: (查询用户点赞) 
+	 * @param fromId 点赞人
+	 * @param toId 被赞人
+	 * @return
+	 */
+	public MemberFavour findFavour(Long fromId,Long toId){
+		Params params = new Params();
+		params.putData("toMemberId", toId);
+		params.putData("fromMemberId", fromId);
+		return memberDao.findMemberFavour(params.getMap());
+	}
+	
+	
+	/**
+	 * @Title: findFavourList 
+	 * @Description: (查询点赞用户列表) 
+	 * @param params 参数
+	 * @return
+	 */
+	public List<UserSimpleInfo> findFavourList(Params params){
+		 List<UserSimpleInfo> list = memberDao.findFavourMemberList(params.getMap());
+		 LocalDate now = LocalDate.now();
+		 list.forEach(info -> {
+			// 工作年限
+			if (now.getYear() - info.getJobYear() == 0) {
+				info.setWorkYear("半年");
+			} else {
+				info.setWorkYear((now.getYear() - info.getJobYear()) + "年");
+			}
+			 info.setAvatar(commonService.appenUrl(info.getAvatar()));
+		 });
+		return list;
+	}
+	
+	/**
+	 * @Title: findSimpleMemberInfo 
+	 * @Description: (根据用户ID查询用户简单信息) 
+	 * @param memberId
+	 * @return
+	 */
+	public UserSimpleInfo findSimpleMemberInfo(Long memberId){
+		UserSimpleInfo info = memberDao.findSimpleMemberInfo(memberId);
+		if(info == null){
+			return null;
+		}
+		LocalDate now = LocalDate.now();
+		// 工作年限
+		if (now.getYear() - info.getJobYear() == 0) {
+			info.setWorkYear("半年");
+		} else {
+			info.setWorkYear((now.getYear() - info.getJobYear()) + "年");
+		}
+		info.setAvatar(commonService.appenUrl(info.getAvatar()));
+		return info;
+	}
+	
+	/**
+	 * @Title: findOnlineSimpleMember 
+	 * @Description: (查询线上课程听课用户头像列表) 
+	 * @param courseId
+	 * @return
+	 */
+	public List<UserSimpleInfo> findOnlineSimpleMember(Long courseId){
+		List<UserSimpleInfo> infoList = memberDao.findOnlineCourseMemberList(courseId);
+		infoList.forEach(info->{
+			info.setAvatar(commonService.appenUrl(info.getAvatar()));
+		});
+		return infoList;
+	}
+	
+	/**
+	 * @Title: findMemberAllInfo 
+	 * @Description: (查询用户全部信息) 
+	 * @param memberId
+	 * @return
+	 */
+	public UserAllInfo findMemberAllInfo(Long memberId){
+		UserAllInfo info = memberDao.findMemberAllInfo(memberId);
+		if(info == null){
+			return null;
+		}
+		info.setAvatar(commonService.appenUrl(info.getAvatar()));
+		LocalDate birthday = LocalDate.parse(DateUtils.formatDate(info.getBirthday(), DateUtils.DATE_FORMAT_NORMAL));
+		LocalDate now = LocalDate.now();
+		// 计算年龄
+		int birNum = DateUtils.calcAge(birthday.getYear(), birthday.getMonthValue(), birthday.getDayOfMonth());
+		info.setAge(birNum);
+		// 工作年限
+		if (now.getYear() - info.getJobYear() == 0) {
+			info.setWorkYear("半年");
+		} else {
+			info.setWorkYear((now.getYear() - info.getJobYear()) + "年");
+		}
+		// 星座
+		info.setConstellation(DateUtils.getConstellation(birthday.getMonthValue(), birthday.getDayOfMonth()));
+		return info;
+	}
+	
+	/**
+	 * @Title: saveMemberFavour 
+	 * @Description: (保存用户点赞) 
+	 * @param favour
+	 */
+	public boolean saveMemberFavour(MemberFavour favour){
+		return memberDao.saveMemberFavour(favour) > 0;
+	}
+	
+	/**
+	 * @Title: updateMemberFavour 
+	 * @Description: (更新用户点赞) 
+	 * @param favour
+	 */
+	public boolean updateMemberFavour(MemberFavour favour){
+		return memberDao.updateMemberFavourStatus(favour) > 0;
+	}
+	
+	/**
+	 * @Title: findMemberList 
+	 * @Description: (查询用户列表) 
+	 * @param map
+	 * @return
+	 */
+	public List<MemberListInfo> findMemberList(Map<String,Object> map){
+		List<MemberListInfo> list = memberDao.findMemberList(map);
+		list.forEach(info -> {
+			info.setAvatar(commonService.appenUrl(info.getAvatar()));
+			info.setJobYearStr(NumberUtils.isNullOrZero(info.getJobYear()) ? "" : info.getJobYear() + "年");
+			info.setStatusStr(info.getStatus() == 1 ? "启用" : "禁用");
+		});
+		return list;
+	}
+	
+	/**
+	 * @Title: findMemberListCount 
+	 * @Description: (查询用户总数) 
+	 * @param map
+	 * @return
+	 */
+	public int findMemberListCount(Map<String,Object> map){
+		return memberDao.findMemberListCount(map);
+	}
+	
+	/**
+	 * @Title: saveMemberInfo 
+	 * @Description: (保存用户信息) 
+	 * @param user 用户
+	 * @param info 其他信息
+	 * @param status 是否新增
+	 * @return
+	 */
+	public boolean saveMemberInfo(Member member,MemberInfo info,boolean status){
+		if(status){
+			if(memberDao.saveMember(member) > 0){
+				info.setMemberId(member.getId());
+				//注册环信IM
+				if(!configInfo.getProjectTest()){
+					//不为测试环境 -> 注册环信
+					saveIMUser(member.getId());
+				}else{
+					//若为测试环信 -> 注册测试app环信
+					saveTestImUser(member.getId());
+				}
+				return memberDao.saveMemberInfo(info) > 0;
+			}
+			return false;
+		}else{
+			return memberDao.updateMember(member) > 0 && memberDao.updateMemberInfo(info) > 0;
+		}
+	}
+	
+	/**
+	 * @Title: updateMemberStatus 
+	 * @Description: (修改用户状态) 
+	 * @param userId
+	 * @return
+	 */
+	public boolean updateMemberStatus(Long userId){
+		Member user = memberDao.findMember(userId);
+		MemberInfo info = memberDao.findMemberInfoByMemberId(userId);
+		if(user.getStatus() == 0){
+			user.setStatus(1);
+			info.setStatus(1);
+		}else{
+			user.setStatus(0);
+			info.setStatus(0);
+		}
+		return memberDao.updateMemberStatus(user) > 0 && memberDao.updateMemberInfoStatus(info) > 0;
+	}
+	
+	/**
+	 * @Title: forcibleBoundMobile 
+	 * @Description: (强制绑定手机号) 
+	 * @param deleteId
+	 * @param params
+	 * @return
+	 */
+	public boolean forcibleBoundMobile(Long deleteId,Params params,Code code){
+		codeService.updateCodeStatus(code);
+		//删除用户
+		if(updateMemberStatus(deleteId)){
+			//修改绑定的手机号
+			return memberDao.updateMemberMobile(params.getMap()) > 0;
+		}
+		return false;
+	}
+	
+	/**
+	 * @Title: forcibleBoundWeixin 
+	 * @Description: (强制绑定微信) 
+	 * @param deleteId
+	 * @param third
+	 * @return
+	 */
+	public boolean forcibleBoundWeixin(Long deleteId,ThirdMember third){
+		if(NumberUtils.isNullOrZero(deleteId)){
+			// 修改微信绑定的用户
+			return memberDao.updateThirdMember(third) > 0;
+		}else{
+			//删除用户
+			if (updateMemberStatus(deleteId)) {
+				// 修改微信绑定的用户
+				return memberDao.updateThirdMember(third) > 0;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * @Title: findAllMember 
+	 * @Description: (查询全部注册用户) 
+	 * @return
+	 */
+	public List<Dictionary> findAllMember(){
+		return memberDao.findAllMember();
+	}
+	
+	/**
+	 * @Title: findMyTeachers 
+	 * @Description: (查询我的老师的ID) 
+	 * @param memberId
+	 * @return
+	 */
+	public List<String> findMyTeachers(Long memberId){
+		return memberDao.findMyTeachers(memberId);
+	}
+	
+	/**
+	 * @Title: findThirdMemberByMemberId 
+	 * @Description: (根据用户ID查询第三方用户) 
+	 * @param memberId
+	 * @return
+	 */
+	public ThirdMember findThirdMemberByMemberId(Long memberId){
+		return memberDao.findThirdMemberByMemberId(memberId);
+	}
+	
+	/**
+	 * @Title: getDefaultMemberInfo 
+	 * @Description: (生成默认用户信息) 
+	 * @return
+	 */
+	private MemberInfo getDefaultMemberInfo(){
+		//生成默认用户信息
+		MemberInfo memberInfo = new MemberInfo();
+		memberInfo.setGender("");
+		memberInfo.setBirthday(new Date());
+		memberInfo.setCompanyId(0L);
+		memberInfo.setCompanyName("");
+		memberInfo.setJobName("");
+		memberInfo.setJobYear(LocalDate.now().getYear());
+		memberInfo.setCoreCapacityId(0L);
+		return memberInfo;
+	}
+	
+	/**
+	 * Title: saveIMUser 
+	 * Description: (保存IM信息) 
+	 * @param userId
+	 * @author ZhaoXu
+	 */
+	public void saveIMUser(Long userId){
+		 ObjectNode datanode = JsonNodeFactory.instance.objectNode();
+	     datanode.put("username",String.valueOf(userId));
+	     datanode.put("password",PasswdEncryption.MD5(String.valueOf(userId)));
+	     ObjectNode createChazuoIMUserSingleNode = EasemobIMUsers.createNewIMUserSingle(datanode,configInfo.getImChaZuoAppKey(),configInfo.getImChaZuoClientId(),configInfo.getImChaZuoClientSecret());
+	     ObjectNode createGuGuIMUserSingleNode = EasemobIMUsers.createNewIMUserSingle(datanode,configInfo.getImGuGuAppKey(),configInfo.getImGuGuClientId(),configInfo.getImGuGuClientSecret());
+	     if (null != createGuGuIMUserSingleNode) {
+	        System.out.println(createGuGuIMUserSingleNode.toString());
+	     }
+	     if(null != createChazuoIMUserSingleNode){
+	        System.out.println(createChazuoIMUserSingleNode.toString());
+	     }
+	     System.out.println(userId);
+	}
+	
+	private void saveTestImUser(Long userId){
+		ObjectNode datanode = JsonNodeFactory.instance.objectNode();
+	     datanode.put("username",String.valueOf(userId));
+	     datanode.put("password",PasswdEncryption.MD5(String.valueOf(userId)));
+	     ObjectNode createChazuoIMUserSingleNode = EasemobIMUsers.createNewIMUserSingle(datanode,configInfo.getImTestAppKey(),configInfo.getImTestClientId(),configInfo.getImTestclientSecret());
+	     if(null != createChazuoIMUserSingleNode){
+	        System.out.println(createChazuoIMUserSingleNode.toString());
+	     }
+	}
+	 /** 
+     * 获得手机号码归属地 
+     *  
+     * @param mobileNumber 
+     * @return 
+     * @throws Exception 
+     */  
+    public String getMobileFrom(String mobileNumber) throws Exception {  
+        HttpClient client=null;  
+        PostMethod method=null;  
+        NameValuePair mobileParameter=null;  
+        NameValuePair actionParameter=null;  
+        int httpStatusCode;  
+          
+        String htmlSource=null;  
+        String result=null;  
+          
+          
+        try {  
+            client=new HttpClient();  
+            client.getHostConfiguration().setHost("www.ip138.com", 8080, "http");  
+            method=new PostMethod("/search.asp");  
+            mobileParameter=new NameValuePair("mobile",mobileNumber);  
+            actionParameter=new NameValuePair("action","mobile");  
+            method.setRequestBody(new NameValuePair[] { actionParameter,mobileParameter });   
+            //设置编码  
+            method.getParams().setParameter(HttpMethodParams.HTTP_CONTENT_CHARSET, "GB2312");  
+              
+            client.executeMethod(method);  
+            httpStatusCode=method.getStatusLine().getStatusCode();  
+            if(httpStatusCode!=200){  
+                throw new Exception("网页内容获取异常！Http Status Code:"+httpStatusCode);  
+            }  
+              
+            htmlSource=method.getResponseBodyAsString();  
+            if(htmlSource!=null&&!htmlSource.equals("")){  
+                result=parseMobileFrom(htmlSource);  
+            }  
+        } catch (RuntimeException e) {  
+            // TODO Auto-generated catch block  
+            e.printStackTrace();  
+        }finally{  
+            method.releaseConnection();  
+        }  
+          
+        return result;  
+          
+    }  
+  
+  
+    /** 
+     * 从www.ip138.com返回的结果网页内容中获取手机号码归属地,结果为：省份 城市 
+     *  
+     * @param htmlSource 
+     * @return 
+     */  
+    public static String parseMobileFrom(String htmlSource){  
+        Pattern p=null;  
+        Matcher m=null;  
+        String result=null;  
+        p=Pattern.compile(REGEX_GET_MOBILE);  
+        m=p.matcher(htmlSource);  
+          
+        while(m.find()){  
+            if(m.start(2)>0){  
+                result=m.group(2);  
+                result=result.replaceAll("&nbsp;", " ");  
+            }  
+        }  
+        return result;  
+          
+    } 
+    
+    //百度第三方接口获取手机号码归属地
+    
+//    String httpArg = "phone=15210011578";
+//    String jsonResult = request(httpUrl, httpArg);
+//    System.out.println(jsonResult);
+
+    /**
+     * @param urlAll
+     *            :请求接口
+     * @param httpArg
+     *            :参数
+     * @return 返回结果
+     */
+    public static String request( String mobileNumber) {
+    	String httpUrl = "http://apis.baidu.com/apistore/mobilenumber/mobilenumber";
+        BufferedReader reader = null;
+        String result = null;
+        StringBuffer sbf = new StringBuffer();
+        httpUrl = httpUrl + "?phone=" +mobileNumber ;
+
+        try {
+            URL url = new URL(httpUrl);
+            HttpURLConnection connection = (HttpURLConnection) url
+                    .openConnection();
+            connection.setRequestMethod("GET");
+            // 填入apikey到HTTP header
+            connection.setRequestProperty("apikey",  "39e7dd9a339a9265683e25d070693ca5");
+            connection.connect();
+            InputStream is = connection.getInputStream();
+            reader = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+            String strRead = null;
+            while ((strRead = reader.readLine()) != null) {
+                sbf.append(strRead);
+                sbf.append("\r\n");
+            }
+            reader.close();
+            result = sbf.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
+    //////////////////////////////    企业APP登录专用               //////////////////////////////
+    /**
+	 * @Title: findLoginMemberByMobile 
+	 * @Description: (根据手机号查询登录用户) 
+	 * @param mobile
+	 * @return
+	 */
+	public Employee findBusinessLoginMemberByMobile(String mobile){
+		return memberDao.findBusinessLoginMemberByMobile(mobile);
+	}
+	
+	/**
+	 * @Title: saveBusinessLoginDetail 
+	 * @Description: (保存企业用户登录信息) 
+	 * @param detail
+	 * @return
+	 */
+	public boolean saveBusinessLoginDetail(LoginDetail detail){
+		return memberDao.saveBusinessLoginDetail(detail) > 0;
+	}
+	
+	/**
+	 * @Title: saveEmployeeInfo 
+	 * @Description: (保存用户) 
+	 * @param member
+	 * @return
+	 */
+	public boolean saveEmployeeInfo(Employee employee){
+		return memberDao.saveEmployeeInfo(employee) > 0;
+	}
+	
+    /**
+	 * @Title: BusinessUserById 
+	 * @Description: (根据ID查询登录用户) 
+	 * @param Id
+	 * @return
+	 */
+	public Employee BusinessUserById(Long Id){
+		return memberDao.BusinessUserById(Id);
+	}
+	/**
+	 * @Title: updateBusinessUserPassword 
+	 * @Description: (修改用户密码) 
+	 * @param member
+	 * @return
+	 */
+	public boolean updateBusinessUserPassword(Employee employee){
+		return memberDao.updateBusinessUserPassword(employee) > 0;
+	}
+	
+	/**
+	 * @Title: updateBusinessUserName 
+	 * @Description: (修改用户昵称) 
+	 * @param member
+	 * @return
+	 */
+	public boolean updateBusinessUserName(Employee employee){
+		return memberDao.updateBusinessUserName(employee) > 0;
+	}
+}

@@ -1,0 +1,330 @@
+package cn.ichazuo.controller.app;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.model.app.CourseWebCrowdfundingInfo;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.CourseWebCrowdfunding;
+import cn.ichazuo.model.table.CourseWebCrowdfundingLog;
+import cn.ichazuo.model.table.CourseWebCrowdfundingUser;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.CrowdfundingService;
+import cn.ichazuo.service.MemberService;
+import cn.ichazuo.service.OrderService;
+
+/**
+ * @ClassName: CrowdfundingController
+ * @Description: (众筹Controller)
+ * @author ZhaoXu
+ * @date 2015年9月14日 下午12:55:32
+ * @version V1.0
+ */
+@RequestMapping("/app")
+@Controller("app.crowdfundingController")
+public class CrowdfundingController extends BaseController {
+	@Autowired
+	private CrowdfundingService crowdfundingService;
+	@Autowired
+	private CourseService courseService;
+	@Autowired
+	private MemberService memberService;
+	@Autowired
+	private OrderService orderService;
+	
+	/**
+	 * @Title: checkCrowdfunding
+	 * @Description: (验证是否发起过众筹)
+	 * @param unionId
+	 * @param courseId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/checkCrowdfunding")
+	public JSONObject checkCrowdfunding(String unionId, Long courseId) {
+		try {
+			if (StringUtils.isNullOrEmpty(unionId) || NumberUtils.isNullOrZero(courseId)) {
+				return error("参数错误");
+			}
+			Course course = courseService.findCourseById(courseId);
+			OfflineCourse offline = courseService.findOfflineCourseByCourseId(courseId);
+			if (offline == null || course == null) {
+				return error("参数错误");
+			}
+			Integer status = orderService.findWebOrderByUnionId(courseId, unionId);
+			if(!NumberUtils.isNullOrZero(status)){
+				return ok("sssss","have1");
+			}
+			CourseWebCrowdfunding info = crowdfundingService.findUserCrowdfundInfo(unionId, courseId);
+			if (info == null) {
+				return ok("没有众筹", "false");
+			} else {
+				if(info.getStatus() == 2){
+					return ok("sssss","have2");
+				}
+				if(info.getStatus() == 3){
+					return ok("没有众筹", "false");
+				}
+				
+				if(info.getRefund() == 1){
+					return ok("没有众筹", "false");
+				}
+//				if(info.getStatus() == 1){
+//					long cha = DateUtils.getNowDate().getTime() - info.getCreateAt().getTime() ;
+//					double result = cha * 1.0 / (1000 * 60 * 60);
+//					
+//					if (result >= 72) {
+//						return ok("没有众筹", "false");
+//					}
+//				}
+				return ok("有众筹", info.getUuid());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: checkMyCrowdfunding 
+	 * @Description: (检验是否是我的众筹) 
+	 * @param unionId 唯一ID
+	 * @param uuid 众筹ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/checkMyCrowdfunding")
+	public JSONObject checkMyCrowdfunding(String unionId,String uuid) {
+		try {
+			if (StringUtils.isNullOrEmpty(unionId) || StringUtils.isNullOrEmpty(uuid)) {
+				return error("参数错误");
+			}
+			
+			CourseWebCrowdfunding info = crowdfundingService.findUserCrowdfundInfoByUUID(uuid);
+			if(info == null){
+				return error("数据错误");
+			}
+//			CourseWebCrowdfunding info = crowdfundingService.findUserCrowdfundCount(unionId, courseId);
+			if (!unionId.equals(info.getUnionId())) {	
+				return ok(String.valueOf(info.getCourseId()), "false");
+			} else {
+				return ok(String.valueOf(info.getCourseId()), "true");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: saveCrowdfunding
+	 * @Description: (保存众筹信息)
+	 * @param sex
+	 *            性别
+	 * @param content
+	 *            内容
+	 * @param name
+	 *            姓名
+	 * @param mobile
+	 *            手机号
+	 * @param weixin
+	 *            微信号
+	 * @param courseId
+	 *            课程ID
+	 * @param unionid
+	 *            唯一ID
+	 * @param openid
+	 *            openId
+	 * @param number
+	 *            购买数量
+	 * @param ip
+	 *            ip地址
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveCrowdfunding")
+	public JSONObject saveCrowdfunding(String[] sex, String[] content, String[] name, String[] mobile, String[] weixin,String[] work,
+			Long courseId, String unionid, String openid, Integer number, String ip, String nickname, String avatar,String weixinSex,String weixinInfo,String phone) {
+		try {
+			if (sex.length != name.length && name.length != mobile.length && mobile.length != name.length && work.length != name.length
+					&& weixin.length != name.length && name.length == 0) {
+				return error("参数错误!");
+			}
+			if (NumberUtils.isNullOrZero(courseId) || StringUtils.isNullOrEmpty(avatar)
+					|| StringUtils.isNullOrEmpty(nickname) || StringUtils.isNullOrEmpty(openid)
+					|| StringUtils.isNullOrEmpty(unionid) || NumberUtils.isNullOrZero(number)) {
+				return error("参数错误!");
+			}
+			Course course = courseService.findCourseById(courseId);
+			OfflineCourse offline = courseService.findOfflineCourseByCourseId(courseId);
+			if (offline == null || course == null) {
+				return error("参数错误");
+			}
+			int joinNumber = courseService.findCourseJoinCount(courseId);
+			if (joinNumber + number > offline.getStudentNum()) {
+				int temp = offline.getStudentNum() - joinNumber;
+				return status(800, "购买数量过多", temp >= 0 ? temp : 0);
+			}
+			
+			long cha = DateUtils.getNowDate().getTime() - course.getBeginTime().getTime() ;
+			double result = cha * 1.0 / (1000 * 60 * 60);
+
+			if (result >= 72) {
+				return status(900, "时间已过..");
+			}
+
+			// 用户信息
+			List<CourseWebCrowdfundingUser> userList = new ArrayList<>();
+			for (int i = 0; i < name.length; i++) {
+				Long id = 0L;
+				// 查询用户
+				Member member = memberService.findLoginMemberByMobile(mobile[i]);
+				if (member != null) {
+					id = member.getId();
+				}
+				if (courseService.findCourseJoinInfo(courseId, id) != null) {
+					return status(600, "已报过名..", mobile[i]);
+				}
+
+				CourseWebCrowdfundingUser user = new CourseWebCrowdfundingUser();
+				user.setContent(StringUtils.isNullOrEmpty(content[i]) || content[i].equals("自我介绍") ? "" : content[i]);
+				user.setMemberId(member == null ? 0L : member.getId());
+				user.setMobile(mobile[i]);
+				user.setName(name[i]);
+				if (sex[i].equals("man")) {
+					user.setSex("男");
+				} else {
+					user.setSex("女");
+				}
+				user.setWeixin(weixin[i]);
+				user.setWork(work[i]);
+
+				userList.add(user);
+			}
+
+			// 众筹信息
+			CourseWebCrowdfunding info = new CourseWebCrowdfunding();
+			info.setContent("");
+			info.setCourseId(courseId);
+			info.setCreateAt(DateUtils.getNowDate());
+			info.setNumber(number);
+			Double price = NumberUtils.mul(offline.getPrice(), number); // 计算价格
+			info.setPrice(price);
+			info.setUuid(CodeUtils.getUUID());
+			info.setUnionId(unionid);
+			info.setNickname(nickname);
+			info.setAvatar(avatar);
+			info.setWeixinSex(weixinSex);
+			info.setWeixinInfo(weixinInfo);
+			info.setPhone(phone);
+			crowdfundingService.saveCrowdfundInfo(info, userList);
+
+			return ok("保存成功", info.getUuid());
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: updateCrowdfundingContent
+	 * @Description: (修改内容)
+	 * @param id
+	 * @param content
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateCrowdfundingContent")
+	public JSONObject updateCrowdfundingContent(String id, String content) {
+		try {
+			if (StringUtils.isNullOrEmpty(id) || content == null) {
+				return error("参数错误");
+			}
+			crowdfundingService.updateCrowdfundingContent(id, content);
+			return ok("OK");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findCrowdfundingInfo
+	 * @Description: (查询众筹信息)
+	 * @param id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCrowdfundingInfo")
+	public JSONObject findCrowdfundingInfo(String id) {
+		try {
+			if (StringUtils.isNullOrEmpty(id)) {
+				return error("参数错误");
+			}
+			CourseWebCrowdfundingInfo info = crowdfundingService.findCrowdfundingInfo(id);
+			if (info == null) {
+				return error("信息不存在");
+			}
+
+
+			long cha = DateUtils.getNowDate().getTime() - info.getCreateAt().getTime() ;
+			int result = (int)(cha * 1.0 / (1000 * 60 * 60));
+
+			int hours = 72 - result;
+
+			info.setDay(hours <= 0 || hours > 72 ? 0 : hours);
+
+			Double money = 0.0;
+			List<CourseWebCrowdfundingLog> logList = crowdfundingService.findCrowdfundingLogList(info.getId());
+
+			for (CourseWebCrowdfundingLog log : logList) {
+				money = NumberUtils.add(money, log.getPrice());
+			}
+
+			info.setMoney(money);
+			info.setLogs(logList);
+			info.setCount(logList.size());
+			return ok("查询成功", info);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: deleteCrowdfundingInfo
+	 * @Description: (放弃众筹)
+	 * @param id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/deleteCrowdfundingInfo")
+	public JSONObject deleteCrowdfundingInfo(String id) {
+		try {
+			if (StringUtils.isNullOrEmpty(id)) {
+				return error("参数错误");
+			}
+			Long iid = crowdfundingService.findCrowdfundingIdByUUID(id);
+			crowdfundingService.updateCrowfundingStatus(3, iid);
+			return ok("成功");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+}

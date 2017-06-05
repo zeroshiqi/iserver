@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.OrderDao">
+	
+	<!-- 根据订单号查询订单数量 -->
+	<select id="findOrderCountByOrderNo" parameterType="java.lang.String" resultType="java.lang.Integer">
+		select count(*) from t_course_order where order_no = #{orderNo} and status = 0
+	</select>
+	
+	<!-- 根据订单号查询订单信息 -->
+	<select id="findOrderInfoByOrderNo" parameterType="java.lang.String" resultType="cn.ichazuo.model.table.CourseOrder">
+		select id,order_no as orderNo,course_id as courseId,member_id as memberId,cash as cash,way,trade_no as tradeNo,
+		notify_time as notifyTime,trade_status as tradeStatus,pay_time as payTime,status,version 
+		from t_course_order where order_no = #{orderNo} and status = 0
+	</select>
+	
+	<!-- 保存课程订单 -->
+	<insert id="saveCourseOrder" parameterType="cn.ichazuo.model.table.CourseOrder">
+		insert into t_course_order(order_no,course_id,member_id,cash,create_at)
+		values(#{orderNo},#{courseId},#{memberId},#{cash},now())
+	</insert>
+	
+	<!-- 修改课程订单 -->
+	<update id="updateCourseOrder" parameterType="cn.ichazuo.model.table.CourseOrder">
+		update t_course_order 
+		<set>
+			<if test="way != null">
+				way = #{way},
+			</if>
+			<if test="tradeNo != null">
+				trade_no = #{tradeNo},
+			</if>
+			<if test="notifyTime != null">
+				notify_time = #{notifyTime},
+			</if>
+			<if test="tradeStatus != null">
+				trade_status = #{tradeStatus},
+			</if>
+			<if test="payTime != null">
+				pay_time = #{payTime},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			version = version + 1,update_at = now()
+		</set>
+		where id = #{id} and version = #{version}
+	</update>
+	
+	<!-- 保存WEB课程订单 -->
+	<insert id="saveWebCourseOrder" parameterType="cn.ichazuo.model.table.WebCourseOrder" useGeneratedKeys="true" keyProperty="id">
+		insert into t_course_web_order(number,status,order_code,price,course_id,create_at,openid,unionid,ip,type,nickname,weixin_sex,avatar,from1,ticket_status,form_nick_name,join_reason,job,buy_intentions)
+		values(#{number},#{status},#{orderCode},#{price},#{courseId},now(),#{openid},#{unionid},#{ip},#{type},#{nickname},#{weixinSex},#{avatar},#{from},#{ticketStatus},#{formNickName},#{joinReason},#{job},#{buyIntentions})
+	</insert>
+	
+	<!-- 根据订单号查询WEB订单 -->
+	<select id="findWebCourseOrder" parameterType="java.lang.String" resultType="cn.ichazuo.model.table.WebCourseOrder" >
+		select id,number,status,version,order_code as orderCode,price,course_id as courseId,unionid,ticket_status as ticketStatus
+		from t_course_web_order where order_code = #{code} limit 1
+	</select>
+	
+	<!-- 修改WEB订单信息 -->
+	<update id="updateWebCourseOrderStatus" parameterType="java.lang.Long">
+		update t_course_web_order set status = 1,version = version + 1,update_at = now() where id = #{id}
+	</update>
+	
+	<!-- 保存订单用户信息 -->
+	<insert id="saveWebCourseOrderUser" parameterType="cn.ichazuo.model.table.WebCourseOrderUser" useGeneratedKeys="true" keyProperty="id">
+		insert into t_course_web_order_user(name,mobile,weixin,content,member_id,sex,order_id,create_at,status,work,city,province)
+		values(#{name},#{mobile},#{weixin},#{content},#{memberId},#{sex},#{orderId},now(),1,#{work},#{city},#{province})
+	</insert>
+	
+	<!-- 修改Web课程订单用户状态 -->
+	<update id="updateWebCourseOrderUserStatus" parameterType="java.util.Map">
+		update t_course_web_order_user set update_at = now(),status = 1,version = version + 1,order_id=#{orderId} where id = #{id}
+	</update>
+	
+	<!-- 根据订单ID查询报名用户 -->
+	<select id="findWebCourseOrderUserByCourseId" parameterType="java.lang.Long" resultType="cn.ichazuo.model.table.WebCourseOrderUser">
+		select id,name,mobile,weixin,content,member_id as memberId,sex,order_id as orderId from t_course_web_order_user where order_id = #{orderId} and status = 1
+	</select>
+	
+	<!-- 修改用户ID -->
+	<update id="updateWebCourseOrderUserId" parameterType="java.util.Map">
+		update t_course_web_order_user set member_id = #{memberId},version = version + 1,update_at = now() where id = #{id}
+	</update>
+	
+	<select id="findWebOrderByUnionId" parameterType="java.util.Map" resultType="java.lang.Integer">
+		select `status` from  t_course_web_order where status = 1 and course_id = #{courseId} and unionid = #{unionId} order by id desc limit 1 
+	</select>
+	
+	<select id="findWebOrderByCourseIdUnionId" parameterType="java.util.Map" resultType="cn.ichazuo.model.table.WebCourseOrder">
+		select ifnull(nickname,'') as nickname,ifnull(weixin_sex,1) as weixinSex,ifnull(avatar,'') as avatar,felicitate,id from t_course_web_order 
+		where course_id = #{courseId} and unionid = #{unionId} and `status` = 1 order by id desc limit 1
+	</select>
+	
+	<update id="updateWebOrderWeixinInfo" parameterType="java.util.Map">
+		update t_course_web_order set update_at = now(),version = version + 1,nickname = #{nickName},weixin_sex = #{sex},avatar = #{avatar} where id = #{id}
+	</update>
+	
+	<!-- 保存线上课程订单用户信息 -->
+	<insert id="saveOnlineWebOrderUser" parameterType="cn.ichazuo.model.table.OnlineWebOrderUser">
+		insert into t_course_online_order_user(name,sex,weixin,phone,company,member_id,create_at,order_id)
+		values(#{name},#{sex},#{weixin},#{phone},#{company},#{memberId},now(),#{orderId})
+	</insert>
+	
+	<!-- 保存线上课程订单信息 -->
+	<insert id="saveOnlineWebOrder" parameterType="cn.ichazuo.model.table.OnlineCourseWebOrder" useGeneratedKeys="true" keyProperty="id">
+		insert into t_course_online_order(code,price,course_id,union_id,create_at,weixin,at)
+		values(#{code},#{price},#{courseId},#{unionId},now(),#{weixin},#{at})
+	</insert>
+	
+	<!-- 根据订单号查询订单信息 -->
+	<select id="findOnlineWebOrderInfoByCode" parameterType="java.lang.String" resultType="cn.ichazuo.model.table.OnlineCourseWebOrder">
+		select id,code,price,course_id as courseId,union_id as unionId,status from t_course_online_order where code = #{code}
+	</select>
+	
+	<!-- 根据订单查询用户信息列表 -->
+	<select id="findOnlineWebOrderUserList" parameterType="java.lang.Long" resultType="cn.ichazuo.model.table.OnlineWebOrderUser">
+		select id,name,sex,weixin,phone,company,member_id as memberId from t_course_online_order_user where order_id = #{orderId}
+	</select>
+	
+	<!-- 支付成功后修改用户Id -->
+	<update id="updateMemberIdByOrderUserId" parameterType="java.util.Map">
+		update t_course_online_order_user set update_at = now(),version = version + 1,member_id = #{memberId} where id = #{userId}
+	</update>
+	
+	<!-- 修改线上课程订单状态 -->
+	<update id="updateOnlineOrderStatus" parameterType="java.lang.Long">
+		update t_course_online_order set status = 1,update_at = now(),version = version + 1 where id = #{id}
+	</update>
+	
+	<!-- 查询线上课程购买数量 -->
+	<select id="findOnlineCourseBugCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+		select count(*) from t_course_online_order where union_id = #{unionId} and course_id = #{courseId} and status = 1
+	</select>
+</mapper>

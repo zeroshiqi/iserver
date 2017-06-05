@@ -1,0 +1,334 @@
+package cn.ichazuo.service;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import cn.ichazuo.commons.base.BaseService;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.dao.OrderDao;
+import cn.ichazuo.model.table.CourseOfflineJoin;
+import cn.ichazuo.model.table.CourseOrder;
+import cn.ichazuo.model.table.JNWebCourseOrder;
+import cn.ichazuo.model.table.JNWebCourseOrderUser;
+import cn.ichazuo.model.table.OnlineCourseWebOrder;
+import cn.ichazuo.model.table.OnlineWebOrderUser;
+import cn.ichazuo.model.table.WebCourseOrder;
+import cn.ichazuo.model.table.WebCourseOrderUser;
+
+/**
+ * @ClassName: OrderService
+ * @Description: (订单Service)
+ * @author ZhaoXu
+ * @date 2015年7月19日 上午2:31:29
+ * @version V1.0
+ */
+@Service("orderService")
+public class OrderService extends BaseService {
+	private static final long serialVersionUID = 1L;
+	@Resource
+	private OrderDao orderDao;
+	@Autowired
+	private CourseService courseService;
+
+	/**
+	 * @Title: getCountByOrderNo
+	 * @Description: (根据订单号查询订单数量)
+	 * @param orderNo
+	 *            订单号
+	 * @return
+	 */
+	public Integer getCountByOrderNo(String orderNo) {
+		return orderDao.findOrderCountByOrderNo(orderNo);
+	}
+
+	/**
+	 * @Title: findCourseOrderByOrderNo
+	 * @Description: (根据订单号获得未支付订单信息)
+	 * @param orderNo
+	 * @return
+	 */
+	public CourseOrder findCourseOrderByOrderNo(String orderNo) {
+		return orderDao.findOrderInfoByOrderNo(orderNo);
+	}
+
+	/**
+	 * @Title: saveCourseOrder
+	 * @Description: (保存课程订单)
+	 * @param order
+	 */
+	public void saveCourseOrder(CourseOrder order) {
+		orderDao.saveCourseOrder(order);
+	}
+
+	/**
+	 * @Title: updateCourseOrder
+	 * @Description: (修改课程订单)
+	 * @param order
+	 */
+	public void updateCourseOrder(CourseOrder order, Integer number, Integer from) {
+		orderDao.updateCourseOrder(order);
+		if (!NumberUtils.isNullOrZero(order.getMemberId())) {
+			// 同时保存报名信息
+			CourseOfflineJoin join = new CourseOfflineJoin();
+			join.setCourseId(order.getCourseId());
+			join.setMemberId(order.getMemberId());
+			join.setType(1); // APP
+			join.setFrom(from);
+			courseService.saveCourseJoin(join);
+		}
+
+		Params params = new Params();
+		params.putData("joinCount", number);
+		params.putData("courseId", order.getCourseId());
+		courseService.updateOfflineCourseJoinNumber(params);
+	}
+
+	/**
+	 * @Title: saveWebCourseOrder
+	 * @Description: (保存WEB课程订单)
+	 * @param order
+	 * @return
+	 */
+	public boolean saveWebCourseOrder(WebCourseOrder order) {
+		orderDao.saveWebCourseOrder(order);
+		return true;
+	}
+
+	/**
+	 * @Title: findWebCourseOrder
+	 * @Description: (查询WEB订单信息)
+	 * @param code
+	 * @return
+	 */
+	public WebCourseOrder findWebCourseOrder(String code) {
+		return orderDao.findWebCourseOrder(code);
+	}
+
+	/**
+	 * @Title: updateWebCourseOrderStatus
+	 * @Description: (修改WEB订单状态(支付成功))
+	 * @param orderId
+	 * @param number
+	 * @param courseId
+	 */
+	public void updateWebCourseOrderStatus(Long orderId, Integer number, Long courseId) {
+		orderDao.updateWebCourseOrderStatus(orderId);
+		Params params = new Params();
+		params.putData("joinCount", number);
+		params.putData("courseId", courseId);
+		courseService.updateOfflineCourseJoinNumber(params);
+	}
+
+	/**
+	 * @Title: saveWebCourseOrderUser
+	 * @Description: (保存Web订单用户)
+	 * @param user
+	 * @return
+	 */
+	public void saveWebCourseOrderUser(List<WebCourseOrderUser> user) {
+		for (WebCourseOrderUser u : user) {
+			orderDao.saveWebCourseOrderUser(u);
+		}
+	}
+
+	/**
+	 * @Title: findWebCourseOrderUserByCourseId
+	 * @Description: (根据订单ID查询报名用户)
+	 * @param orderId
+	 * @return
+	 */
+	public List<WebCourseOrderUser> findWebCourseOrderUserByCourseId(Long orderId) {
+		return orderDao.findWebCourseOrderUserByCourseId(orderId);
+	}
+
+	/**
+	 * @Title: updateWebCourseOrderUserId
+	 * @Description: (修改用户ID)
+	 * @param memberId
+	 * @param id
+	 * @return
+	 */
+	public boolean updateWebCourseOrderUserId(Long memberId, Long id) {
+		Params params = new Params();
+		params.putData("memberId", memberId);
+		params.putData("id", id);
+		return orderDao.updateWebCourseOrderUserId(params.getMap()) > 0;
+	}
+
+	public Integer findWebOrderByUnionId(Long courseId, String unionId) {
+		Map<String, Object> data = new HashMap<>();
+		data.put("courseId", courseId);
+		data.put("unionId", unionId);
+		return orderDao.findWebOrderByUnionId(data);
+	}
+
+	public WebCourseOrder findWebOrderByCourseIdUnionId(Long courseId, String unionId) {
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("unionId", unionId);
+		return orderDao.findWebOrderByCourseIdUnionId(params.getMap());
+	}
+
+	public void updateWebOrderWeixinInfo(Params params) {
+		orderDao.updateWebOrderWeixinInfo(params.getMap());
+	}
+	
+	/**
+	 * @Title: saveOnlineWebOrderUser 
+	 * @Description: (保存线上课程购买用户信息) 
+	 * @param user
+	 */
+	public void saveOnlineWebOrderUser(OnlineWebOrderUser user){
+		orderDao.saveOnlineWebOrderUser(user);
+	}
+	
+	/**
+	 * @Title: saveOnlineWebOrder 
+	 * @Description: (保存线上课程购买订单信息) 
+	 * @param order
+	 */
+	public void saveOnlineWebOrder(OnlineCourseWebOrder order){
+		orderDao.saveOnlineWebOrder(order);
+	}
+	
+	/**
+	 * @Title: findOnlineWebOrderInfoByCode 
+	 * @Description: (根据订单号查询订单信息) 
+	 * @param code
+	 * @return
+	 */
+	public OnlineCourseWebOrder findOnlineWebOrderInfoByCode(String code){
+		return orderDao.findOnlineWebOrderInfoByCode(code);
+	}
+	
+	/**
+	 * @Title: findOnlineWebOrderUserList 
+	 * @Description: (查询线上课程订单用户列表) 
+	 * @param orderId
+	 * @return
+	 */
+	public List<OnlineWebOrderUser> findOnlineWebOrderUserList(Long orderId){
+		return orderDao.findOnlineWebOrderUserList(orderId);
+	}
+	
+	/**
+	 * @Title: updateMemberIdByOrderUserId 
+	 * @Description: (修改关联用户Id) 
+	 * @param userId
+	 * @param memberId
+	 */
+	public void updateMemberIdByOrderUserId(Long userId,Long memberId){
+		Params params = new Params();
+		params.putData("userId", userId);
+		params.putData("memberId", memberId);
+		orderDao.updateMemberIdByOrderUserId(params.getMap());
+	}
+	
+	/**
+	 * @Title: updateOnlineOrderStatus 
+	 * @Description: (修改线上课程订单状态) 
+	 * @param id
+	 */
+	public void updateOnlineOrderStatus(Long id){
+		orderDao.updateOnlineOrderStatus(id);
+	}
+	
+	/**
+	 * @Title: findOnlineCourseBugCount 
+	 * @Description: (查询用户购买数量) 
+	 * @param courseId
+	 * @param unionId
+	 * @return
+	 */
+	public int findOnlineCourseBugCount(Long courseId,String unionId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("unionId", unionId);
+		return orderDao.findOnlineCourseBugCount(params.getMap());
+	}
+	///////////////////////////////////////////////////////////////////////////////////////////
+	////////////////////////              极牛直播                        ////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////////////////
+	/**
+	 * @Title: saveWebCourseOrder
+	 * @Description: (保存WEB课程订单)
+	 * @param order
+	 * @return
+	 */
+	public boolean saveJNWebCourseOrder(JNWebCourseOrder order) {
+		orderDao.saveJNWebCourseOrder(order);
+		return true;
+	}
+	
+	/**
+	 * @Title: saveJNWebCourseOrderUser
+	 * @Description: (保存极牛直播Web订单用户)
+	 * @param user
+	 * @return
+	 */
+	public void saveJNWebCourseOrderUser(List<JNWebCourseOrderUser> user) {
+		for (JNWebCourseOrderUser u : user) {
+			orderDao.saveJNWebCourseOrderUser(u);
+		}
+	}
+	
+	/**
+	 * @Title: findWebCourseOrder
+	 * @Description: (查询WEB订单信息)
+	 * @param code
+	 * @return
+	 */
+	public JNWebCourseOrder findJNWebCourseOrder(String code) {
+		return orderDao.findJNWebCourseOrder(code);
+	}
+	
+
+	/**
+	 * @Title: findJNWebCourseOrderUserByCourseId
+	 * @Description: (根据订单ID查询报名用户)
+	 * @param orderId
+	 * @return
+	 */
+	public List<JNWebCourseOrderUser> findJNWebCourseOrderUserByCourseId(Long orderId) {
+		return orderDao.findJNWebCourseOrderUserByCourseId(orderId);
+	}
+	
+	/**
+	 * @Title: updateJNWebCourseOrderUserId
+	 * @Description: (修改用户ID)
+	 * @param memberId
+	 * @param id
+	 * @return
+	 */
+	public boolean updateJNWebCourseOrderUserId(Long memberId, Long id) {
+		Params params = new Params();
+		params.putData("memberId", memberId);
+		params.putData("id", id);
+		return orderDao.updateWebCourseOrderUserId(params.getMap()) > 0;
+	}
+
+	/**
+	 * @Title: updateWebCourseOrderStatus
+	 * @Description: (修改WEB订单状态(支付成功))
+	 * @param orderId
+	 * @param number
+	 * @param courseId
+	 */
+	public void updateJNWebCourseOrderStatus(Long orderId, Integer number, Long courseId) {
+		orderDao.updateJNWebCourseOrderStatus(orderId);
+	}
+	
+	public List<JNWebCourseOrder> getWhetherBuyCourseByUnionid(String courseId,String unionid){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("unionid", unionid);
+		return orderDao.getWhetherBuyCourseByUnionid(params.getMap());
+	}
+}

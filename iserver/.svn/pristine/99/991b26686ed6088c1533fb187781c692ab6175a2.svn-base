@@ -1,0 +1,2042 @@
+package cn.ichazuo.controller.app;
+
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.alipay.util.AlipayNotify;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.commons.util.model.PhoneInfo;
+import cn.ichazuo.model.admin.OfflineMsgInfo;
+import cn.ichazuo.model.app.BusinessFeedBack;
+import cn.ichazuo.model.app.CatalogCourseList;
+import cn.ichazuo.model.app.Comment;
+import cn.ichazuo.model.app.CommentPraise;
+import cn.ichazuo.model.app.CourseWebCrowdfundingInfo;
+import cn.ichazuo.model.app.DictItem;
+import cn.ichazuo.model.app.FirstType;
+import cn.ichazuo.model.app.KeyWords;
+import cn.ichazuo.model.app.LoginInfo;
+import cn.ichazuo.model.app.MemberPayInfo;
+import cn.ichazuo.model.app.OfflineCourseListInfo;
+import cn.ichazuo.model.app.Recommend;
+import cn.ichazuo.model.app.SecondCatalogCourseList;
+import cn.ichazuo.model.app.SecondType;
+import cn.ichazuo.model.app.StudyPlan;
+import cn.ichazuo.model.app.WebCourseOrderInfo;
+import cn.ichazuo.model.table.ArticleCommentFavour;
+import cn.ichazuo.model.table.BusinessTicket;
+import cn.ichazuo.model.table.Catalog;
+import cn.ichazuo.model.table.Code;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.CourseOfflineJoin;
+import cn.ichazuo.model.table.CourseOrder;
+import cn.ichazuo.model.table.CourseWebCrowdfunding;
+import cn.ichazuo.model.table.CourseWebCrowdfundingLog;
+import cn.ichazuo.model.table.CourseWebCrowdfundingOrder;
+import cn.ichazuo.model.table.CourseWebCrowdfundingUser;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.FeedBack;
+import cn.ichazuo.model.table.LoginDetail;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.model.table.SecondCatalog;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.WebCourseOrder;
+import cn.ichazuo.model.table.WebCourseOrderUser;
+import cn.ichazuo.service.BusinessService;
+import cn.ichazuo.service.CodeService;
+import cn.ichazuo.service.CommonService;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.CrowdfundingService;
+import cn.ichazuo.service.MemberService;
+import cn.ichazuo.service.OrderService;
+
+/**
+ * @ClassName: OrderController
+ * @Description: (订单Controller)
+ * @author ZhaoXu
+ * @date 2015年7月19日 上午2:28:03
+ * @version V1.0
+ */
+@RequestMapping("/app")
+@Controller("app.businessController")
+public class BusinessController extends BaseController {
+	@Autowired
+	private MemberService memberService;
+	@Autowired
+	private BusinessService businessService;
+	@Autowired
+	private CodeService codeService;
+	@Autowired
+	private CommonService commonService;
+	@Autowired
+	private CrowdfundingService crowdfundingService;
+	protected Logger logger = LoggerFactory.getLogger(getClass());
+	public static final String css = "<link rel='stylesheet' href='https://res.wx.qq.com/mpres/htmledition/ueditor/themes/iframe.css' /><link rel='stylesheet' type='text/css' href='http://www.chazuomba.com/files/bg.css'>";
+
+	/**
+	 * @Title: getCatalogList
+	 * @Description: (获得课程分类列表)
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getCatalogList")
+	public JSONObject getCatalogList(Page page,Long employeeId,String client,String version,String deviceId) {
+		try {
+			List<Catalog> catalogList = null;
+//			Employee employee = businessService.findEmployeeDetail(employeeId);
+//			Long ifBusiness = employee.getIfBusiness();
+			//判断用户是否为苹果端注册用户
+			//1:苹果端注册用户 不为1：后来录入用户
+//			if(ifBusiness==1){
+//				//查询个人用户分类列表
+////				catalogList=businessService.findPersonCatalogList(page); 
+//				//以下是判断用户会员是否过期的
+//				MemberPayInfo payInfo = businessService.queryMemberPayByEmployeeId(employeeId);
+//			    if(payInfo!=null){
+//			    	Long monthCount = businessService.queryMonthCountByEmployeeId(employeeId);
+//			    	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//			    	DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); 
+//			    	Date now = new Date();
+//			    	Calendar calendar = Calendar.getInstance();
+//			    	calendar.setTime(payInfo.getCreateAt());
+//			    	calendar.add(Calendar.MONTH,  Integer.valueOf(monthCount.toString()));
+//			    	System.out.println(sdf.format(calendar.getTime()));
+//			    	//当前时间
+//			    	Date dateTime1 = dateFormat.parse(sdf.format(now));
+//			    	//会员过期时间
+//			        Date dateTime2 = dateFormat.parse(sdf.format(calendar.getTime()));
+//			        int i = dateTime1.compareTo(dateTime2);  
+//			        System.out.println(i < 0);
+//			    }
+//			}else{
+				if(employeeId!=33){
+					//查询最近一次登录的信息
+					LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+					//查询学员此种设备、此个设备ID上次登录的明细
+					LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+					if(loginDetail!=null){
+						Long detailId = loginDetail.getId();
+						Long lastId = lastLogin.getId();
+						//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，，如果最后一次的大于本机登陆的，那么就是在异地登录了
+						if(lastId>detailId){
+							SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+							return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+						}
+					}
+				}
+				catalogList=businessService.findCatalogList(page);
+				for(int i=0;i<catalogList.size();i++){
+//					String content = catalogList.get(i).getAvatar();
+//					if(!StringUtils.isNullOrEmpty(content)){
+//						//随机生成字母和数字的组合
+//						String pwd = PasswdEncryption.getStringRandom();
+//						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogList.get(i).getAvatar()));
+//						stringBuffer.insert(50, pwd).toString();
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+//					}else{
+//						catalogList.get(i).setAvatar(content);
+//					}
+					catalogList.get(i).setAvatar(commonService.appenUrl(catalogList.get(i).getAvatar()));
+				}
+//			}
+			return ok("查询成功", catalogList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: getParentCatalogList
+	 * @Description: (获得课程一级分类列表)
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getParentCatalogList")
+	public JSONObject getParentCatalogList(Page page,Long employeeId,String client,String version,String deviceId) {
+		try {
+			List<Catalog> catalogList = null;
+				if(employeeId!=33){
+					//查询最近一次登录的信息
+					LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+					//查询学员此种设备、此个设备ID上次登录的明细
+					LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+					if(loginDetail!=null){
+						Long detailId = loginDetail.getId();
+						Long lastId = lastLogin.getId();
+						//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，，如果最后一次的大于本机登陆的，那么就是在异地登录了
+						if(lastId>detailId){
+							SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+							return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+						}
+					}
+				}
+				catalogList=businessService.findParentCatalogList(page);
+				for(int i=0;i<catalogList.size();i++){
+					catalogList.get(i).setAvatar(commonService.appenUrl(catalogList.get(i).getAvatar()));
+					catalogList.get(i).getFlag();
+					//判断是以什么形式展现课程列表
+					if(catalogList.get(i).getFlag()=="0" || ("0").equals(catalogList.get(i).getFlag())){
+						//修改课程数量
+						catalogList.get(i).setCourseCount(businessService.findCatalogListCourseCount(catalogList.get(i).getId()));
+						//修改学习人数
+						catalogList.get(i).setStudyCount(businessService.findCatalogListStudyCount(catalogList.get(i).getId()));
+					}
+				}
+//			}
+			return ok("查询成功", catalogList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: getCatalogList
+	 * @Description: (获得课程分类列表)
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getSecondCatalogList")
+	public JSONObject getSecondCatalogList(Page page,Long employeeId,Long parentId,String client,String version,String deviceId) {
+		try {
+			List<SecondCatalog> catalogList = null;
+//			Employee employee = businessService.findEmployeeDetail(employeeId);
+//			Long ifBusiness = employee.getIfBusiness();
+			//判断用户是否为苹果端注册用户
+			//1:苹果端注册用户 不为1：后来录入用户
+//			if(ifBusiness==1){
+//				//查询个人用户分类列表
+////				catalogList=businessService.findPersonCatalogList(page); 
+//				//以下是判断用户会员是否过期的
+//				MemberPayInfo payInfo = businessService.queryMemberPayByEmployeeId(employeeId);
+//			    if(payInfo!=null){
+//			    	Long monthCount = businessService.queryMonthCountByEmployeeId(employeeId);
+//			    	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//			    	DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); 
+//			    	Date now = new Date();
+//			    	Calendar calendar = Calendar.getInstance();
+//			    	calendar.setTime(payInfo.getCreateAt());
+//			    	calendar.add(Calendar.MONTH,  Integer.valueOf(monthCount.toString()));
+//			    	System.out.println(sdf.format(calendar.getTime()));
+//			    	//当前时间
+//			    	Date dateTime1 = dateFormat.parse(sdf.format(now));
+//			    	//会员过期时间
+//			        Date dateTime2 = dateFormat.parse(sdf.format(calendar.getTime()));
+//			        int i = dateTime1.compareTo(dateTime2);  
+//			        System.out.println(i < 0);
+//			    }
+//			}else{
+				if(employeeId!=33){
+					//查询最近一次登录的信息
+					LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+					//查询学员此种设备、此个设备ID上次登录的明细
+					LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+					if(loginDetail!=null){
+						Long detailId = loginDetail.getId();
+						Long lastId = lastLogin.getId();
+						//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，，如果最后一次的大于本机登陆的，那么就是在异地登录了
+						if(lastId>detailId){
+							SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+							return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+						}
+					}
+				}
+				SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				System.out.println("查询二级分类列表开始时间："+df1.format(new Date()));
+				catalogList=businessService.findSecondCatalogList(page,parentId);
+				System.out.println("查询二级分类列表结束时间："+df1.format(new Date()));
+				for(int i=0;i<catalogList.size();i++){
+					catalogList.get(i).setAvatar(commonService.appenUrl(catalogList.get(i).getAvatar()));
+					List<SecondCatalogCourseList> catalogCourseList = null;
+					System.out.println("查询二级分类下课程列表开始时间："+df1.format(new Date()));
+					catalogCourseList=businessService.getSecondCatalogCourseList(catalogList.get(i).getId());
+					System.out.println("查询二级分类下课程列表结束时间："+df1.format(new Date()));
+					//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+					if(catalogCourseList!=null){
+						for(int j=0;j<catalogCourseList.size();j++){
+							//是否推荐
+							if(businessService.queryRecommend(catalogCourseList.get(j).getId(),employeeId).size()>0){
+								Long ifRecommend = (long) 1;
+								catalogCourseList.get(j).setIfRecommend(ifRecommend);
+							}else{
+								Long ifRecommend = (long) 0;
+								catalogCourseList.get(j).setIfRecommend(ifRecommend);
+							}
+							//是否在学习计划
+							if(businessService.queryStudyPlan(catalogCourseList.get(j).getId(),employeeId).size()>0){
+								Long ifStudyPlan = (long) 1;
+								catalogCourseList.get(j).setIfStudyPlan(ifStudyPlan);
+							}else{
+								Long ifStudyPlan = (long) 0;
+								catalogCourseList.get(j).setIfStudyPlan(ifStudyPlan);
+							}
+							catalogCourseList.get(j).setAvatar(commonService.appenUrl(catalogCourseList.get(j).getAvatar()));
+							//根据版本号判断是否加密PDF地址
+//							if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//								catalogCourseList.get(j).setPdfAddress(commonService.appenUrl(catalogCourseList.get(j).getPdfAddress()));
+//							}else{
+								String content =catalogCourseList.get(j).getPdfAddress();
+								String playAddress = catalogCourseList.get(j).getPlayAddress();
+								//随机生成字母和数字的组合加密录音文件地址
+								String pwd1 = PasswdEncryption.getStringRandom();
+								StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+								stringBuffer1.insert(50, pwd1).toString();
+								catalogCourseList.get(j).setPlayAddress(stringBuffer1.toString().toUpperCase());
+								//加密PlayAddressM3u8
+//								String playAddress1 = catalogCourseList.get(j).getPlayAddressM3u8();
+//								String pwd2 = PasswdEncryption.getStringRandom();
+//								StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//								stringBuffer2.insert(50, pwd2).toString();
+//								catalogCourseList.get(j).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+								if(!StringUtils.isNullOrEmpty(content)){
+									//随机生成字母和数字的组合加密PDF地址
+									String pwd = PasswdEncryption.getStringRandom();
+									StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(j).getPdfAddress()));
+									stringBuffer.insert(50, pwd).toString();
+									catalogCourseList.get(j).setPdfAddress(stringBuffer.toString().toUpperCase());
+//									catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+								}else{
+									catalogCourseList.get(j).setPdfAddress(commonService.appenUrl(content));
+								}
+							}
+//						}
+					}
+					catalogList.get(i).setCatalogCourseList(catalogCourseList);
+				}
+				System.out.println("遍历结束时间："+df1.format(new Date()));
+//			}
+			return ok("查询成功", catalogList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: getCatalogCourseList
+	 * @Description: (获得课程分类下课程列表)
+	 * @param catalogId
+	 *            分类ID
+	 * @param employeeId
+	 *            用户ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getSecondCatalogCourseList")
+	public JSONObject getSecondCatalogCourseList(Long catalogId,Long employeeId,String client,String version,String deviceId) {
+		try {
+			List<SecondCatalogCourseList> catalogCourseList = null;
+			if(employeeId!=33){
+				LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+				//查询学员此种设备、此个设备ID上次登录的明细
+				LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+				if(loginDetail!=null){
+					Long detailId = loginDetail.getId();
+					Long lastId = lastLogin.getId();
+					//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，，如果最后一次的大于本机登陆的，那么就是在异地登录了
+					if(lastId>detailId){
+						SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+						return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+					}
+				}
+			}
+			catalogCourseList=businessService.getSecondCatalogCourseList(catalogId);
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<catalogCourseList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				catalogCourseList.get(i).setAvatar(commonService.appenUrl(catalogCourseList.get(i).getAvatar()));
+				catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//				String content =catalogCourseList.get(i).getPdfAddress();
+//				if(!StringUtils.isNullOrEmpty(content)){
+//					//随机生成字母和数字的组合
+//					String pwd = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//					stringBuffer.insert(50, pwd).toString();
+//					catalogCourseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+////					catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());s
+//				}else{
+//					catalogCourseList.get(i).setAvatar(content);
+//				}
+//				//判断音频地址
+//				if(!StringUtils.isNullOrEmpty(catalogCourseList.get(i).getPlayAddress())){
+//					//随机生成字母和数字的组合
+//					String pwd = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPlayAddress()));
+//					stringBuffer.insert(50, pwd).toString();
+//					catalogCourseList.get(i).setPlayAddress(stringBuffer.toString().toUpperCase());
+//				}
+				//根据版本号判断是否加密PDF地址,只加密正在审核的iOS版本地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//				}else{
+					String content =catalogCourseList.get(i).getPdfAddress();
+					String playAddress = catalogCourseList.get(i).getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					catalogCourseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = catalogCourseList.get(i).getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					catalogCourseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						catalogCourseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(content));
+					}
+				}
+//			}
+			return ok("查询成功", catalogCourseList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: getCatalogCourseList
+	 * @Description: (获得课程分类下课程列表)
+	 * @param catalogId
+	 *            分类ID
+	 * @param employeeId
+	 *            用户ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getCatalogCourseList")
+	public JSONObject getCatalogCourseList(Long catalogId,Long employeeId,String client,String version,String deviceId) {
+		try {
+			List<CatalogCourseList> catalogCourseList = null;
+			if(employeeId!=33){
+				LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+				//查询学员此种设备、此个设备ID上次登录的明细
+				LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+				if(loginDetail!=null){
+					Long detailId = loginDetail.getId();
+					Long lastId = lastLogin.getId();
+					//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，，如果最后一次的大于本机登陆的，那么就是在异地登录了
+					if(lastId>detailId){
+						SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+						return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+					}
+				}
+			}
+			catalogCourseList=businessService.getCatalogCourseList(catalogId);
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<catalogCourseList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				catalogCourseList.get(i).setAvatar(commonService.appenUrl(catalogCourseList.get(i).getAvatar()));
+				catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//				String content =catalogCourseList.get(i).getPdfAddress();
+//				if(!StringUtils.isNullOrEmpty(content)){
+//					//随机生成字母和数字的组合
+//					String pwd = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//					stringBuffer.insert(50, pwd).toString();
+//					catalogCourseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+////					catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());s
+//				}else{
+//					catalogCourseList.get(i).setAvatar(content);
+//				}
+				//根据版本号判断是否加密PDF地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//				}else{
+					String content =catalogCourseList.get(i).getPdfAddress();
+					String playAddress = catalogCourseList.get(i).getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					catalogCourseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = catalogCourseList.get(i).getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					catalogCourseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						catalogCourseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(content));
+					}
+				}
+//			}
+			return ok("查询成功", catalogCourseList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: addStudyDetail 
+	 * @Description: (记录学员学习记录) 
+	 * @param courseId 课程ID
+	 * @param employeeId 学员ID
+	 * @param addNum 课程学习完成标识，2：已完成，1：未完成；0未开始
+	 * @param studyTime 课程学习时长，单位秒
+	 * @param courseTime 课程时长，只有学习完成时才传，大小为录音课件的时间长度，单位秒
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/addStudyDetail")
+	public JSONObject addStudyDetail(Long courseId,Long employeeId,Long addNum,Long studyTime,Long courseTime,String client,String version){
+		try{
+			if(NumberUtils.isNullOrZero(courseId) || NumberUtils.isNullOrZero(employeeId) || NumberUtils.isNullOrZero(studyTime)){
+				return error("参数缺失");
+			}
+			if(NumberUtils.isNullOrZero(addNum)){
+				return error("addNum参数传值错误");
+			}
+			String status = "";
+			if(addNum==2){
+//				if(businessService.findStudyDetail(courseId,employeeId,addNum).size()<1){
+					status = "2";
+					businessService.addStudyDetail(courseId,employeeId,courseTime,addNum,status);
+//				}
+				businessService.addStudyNumber(courseId);
+				List<StudyPlan> planList = null;
+				planList = businessService.queryStudyPlanExist(courseId,employeeId);
+//				判断完成的课程是否在计划学习列表中，如果在则更新此条记录的学习进度
+				if(planList.size()>0){ 
+					//如果计划中的课程学习进度低于本次进度，则把本次进度当作最新进度更新到计划列表中
+					if(planList.get(0).getIsFinished()<addNum){
+						businessService.updateStudyPlan(planList.get(0).getId(),addNum);
+					}
+				}
+				return ok("保存成功");
+			}
+			if(addNum==1){
+//				if(businessService.findStudyDetail(courseId,employeeId,addNum).size()<1){
+					status = "1";
+					businessService.addStudyDetail(courseId,employeeId,studyTime,addNum,status);
+//				}
+				List<StudyPlan> planList = null;
+				planList = businessService.queryStudyPlanExist(courseId,employeeId);
+//				判断正在学习的课程是否在计划学习列表中，如果在则更新此条记录的学习进度
+				if(planList.size()>0){
+					//如果计划中的课程学习进度低于本次进度，则把本次进度当作最新进度更新到计划列表中
+					if(planList.get(0).getIsFinished()<addNum){
+						businessService.updateStudyPlan(planList.get(0).getId(),addNum);
+					}
+				}
+				return ok("保存成功");
+			}
+//			if(studyTime>0){
+//				status = "1";
+//				businessService.addStudyDetail(courseId,employeeId,studyTime,addNum,status);
+//				return ok("保存成功");
+//			}	
+			return error("保存失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCatalogCourseListHot
+	 * @Description: (根据播放时间等查询条件查询课程分类下热门课程列表)
+	 * @param keyWordsId 关键字ID
+	 * @param level 级别         
+	 * @param employeeId  企业用户ID
+	 * @param timeLength 时长
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCatalogCourseListHot")
+	public JSONObject findCatalogCourseListHot(int keyWordsId,Long employeeId,int timeLength,int level,Page page,String client,String version) {
+		try {
+			if(NumberUtils.isNullOrZero(timeLength) && NumberUtils.isNullOrZero(keyWordsId) && NumberUtils.isNullOrZero(level)){
+				return error("参数缺失");
+			}
+			List<CatalogCourseList> catalogCourseList = null;
+			Employee employee = businessService.findEmployeeDetail(employeeId);
+			Long ifBusiness = employee.getIfBusiness();
+			//判断用户是否为苹果端注册用户
+			//1:苹果端注册用户 不为1：后来录入用户
+//			if(ifBusiness==1){
+//				catalogCourseList =businessService.findPersonCatalogCourseList(keyWordsId,timeLength,level,page);
+//			}else{
+				catalogCourseList=businessService.findCatalogCourseList(keyWordsId,timeLength,level,page);
+//			}
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<catalogCourseList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				catalogCourseList.get(i).setAvatar(commonService.appenUrl(catalogCourseList.get(i).getAvatar()));
+				//根据版本号判断是否加密PDF地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//				}else{
+					String content =catalogCourseList.get(i).getPdfAddress();
+					String playAddress = catalogCourseList.get(i).getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					catalogCourseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = catalogCourseList.get(i).getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					catalogCourseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						catalogCourseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(content));
+					}
+				}
+//			}
+			return ok("查询成功", catalogCourseList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findDictItemList
+	 * @Description: (查询全部数据字典项用于热门中用分类查询)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findDictItemList")
+	public JSONObject findDictItemList(Page page,String client,String version) {
+		try {
+			List<DictItem> dictList = null;
+			dictList=businessService.findDictItemList(page);
+			return ok("查询成功", dictList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateStudyPlan
+	 * @Description: (更改学习计划状态)
+	 * @param employeeId 学员ID
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateStudyPlan")
+	public JSONObject updateStudyPlan(Long employeeId,Long courseId,String client,String version) {
+		try {
+			List<StudyPlan> planList = null;
+			planList = businessService.queryStudyPlan(courseId,employeeId);
+			if(planList.size()>0){
+				businessService.updateStudyPlan(planList.get(0).getId());
+//				return ok("取消收藏成功");
+				return status(300, "取消收藏成功");
+			}else{
+				List<StudyPlan> planListExist = null;
+				planListExist = businessService.queryStudyPlanExist(courseId,employeeId);
+				//判断学员历史是否收藏过此课程，如果收藏过并且已经取消收藏，则把数据还原
+				if(planListExist.size()>0){
+					businessService.updateStudyPlan(planListExist.get(0).getId());
+					return ok("收藏成功");
+				}else{
+					businessService.saveStudyPlan(courseId,employeeId);
+					return ok("收藏成功");
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findStudyPlanList
+	 * @Description: (查询学员学习计划列表)
+	 * @param employeeId 学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findStudyPlanList")
+	public JSONObject findStudyPlanList(Page page,Long employeeId,String client,String version) {
+		try {
+			List<CatalogCourseList> planList = null;
+			planList = businessService.queryStudyPlanList(page,employeeId);
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<planList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(planList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					planList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					planList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(planList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					planList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					planList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				//根据版本号判断是否加密PDF地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					planList.get(i).setAvatar(commonService.appenUrl(planList.get(i).getAvatar()));
+//					planList.get(i).setPdfAddress(commonService.appenUrl(planList.get(i).getPdfAddress()));
+//				}else{
+					String content =planList.get(i).getPdfAddress();
+					String playAddress = planList.get(i).getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					planList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = planList.get(i).getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					planList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					planList.get(i).setAvatar(commonService.appenUrl(planList.get(i).getAvatar()));
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(planList.get(i).getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						planList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						planList.get(i).setPdfAddress(commonService.appenUrl(content));
+					}
+				}
+//			}
+			return ok("查询成功",planList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: queryStudyFinishedList
+	 * @Description: (查询学员已经完成学习的课程列表)
+	 * @param employeeId 学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/queryStudyFinishedList")
+	public JSONObject queryStudyFinishedList(Page page,Long employeeId,String client,String version) {
+		try {
+			List<CatalogCourseList> planList = null;
+			planList = businessService.queryStudyFinishedList(page,employeeId);
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<planList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(planList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					planList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					planList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(planList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					planList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					planList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				planList.get(i).setAvatar(commonService.appenUrl(planList.get(i).getAvatar()));
+//				planList.get(i).setPdfAddress(commonService.appenUrl(planList.get(i).getPdfAddress()));
+				//根据版本号判断是否加密PDF地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					planList.get(i).setAvatar(commonService.appenUrl(planList.get(i).getAvatar()));
+//					planList.get(i).setPdfAddress(commonService.appenUrl(planList.get(i).getPdfAddress()));
+//				}else{
+					String content =planList.get(i).getPdfAddress();
+					String playAddress = planList.get(i).getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					planList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = planList.get(i).getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					planList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(planList.get(i).getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						planList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						planList.get(i).setPdfAddress(commonService.appenUrl(content));
+					}
+				}
+//			}
+			return ok("查询成功",planList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateRecommend
+	 * @Description: (修改课程推荐状态)
+	 * @param employeeId 学员ID
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateRecommend")
+	public JSONObject updateRecommend(Long employeeId,Long courseId,String client,String version) {
+		try {
+			List<Recommend> recommendList = null;
+			recommendList = businessService.queryRecommend(courseId,employeeId);
+			if(recommendList.size()>0){
+				businessService.updateRecommend(recommendList.get(0).getId());
+//				return ok("取消推荐成功");
+				return status(300, "取消推荐成功");
+			}else{
+				List<Recommend> recommendListExist = null;
+				recommendListExist = businessService.queryRecommendExist(courseId,employeeId);
+				if(recommendListExist.size()>0){
+					businessService.updateRecommend(recommendListExist.get(0).getId());
+					return ok("推荐成功");
+				}else{
+					businessService.saveRecommend(courseId,employeeId);
+					return ok("推荐成功");
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findKeyWordsList
+	 * @Description: (查询所有搜索关键字)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findKeyWordsList")
+	public JSONObject findKeyWordsList(Page page,String client,String version) {
+		try {
+			try {
+				List<KeyWords> keyWordsList = null;
+				keyWordsList=businessService.findKeyWordsList(page);
+				return ok("查询成功", keyWordsList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCourseListByKeyWords
+	 * @Description: (根据关键字查询课程)
+	 * @param keyWords 关键字
+	 * @param employeeId 企业学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseListByKeyWords")
+	public JSONObject findCourseListByKeyWords(String keyWords,Long employeeId,Page page,String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> courseList = null;
+				courseList=businessService.findCourseListByKeyWords(keyWords,page);
+				//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+				for(int i=0;i<courseList.size();i++){
+					//是否推荐
+					if(businessService.queryRecommend(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifRecommend = (long) 1;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}else{
+						Long ifRecommend = (long) 0;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}
+					//是否在学习计划
+					if(businessService.queryStudyPlan(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifStudyPlan = (long) 1;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}else{
+						Long ifStudyPlan = (long) 0;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}
+					courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+					//根据版本号判断是否加密PDF地址
+//					if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//						courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+//						courseList.get(i).setPdfAddress(commonService.appenUrl(courseList.get(i).getPdfAddress()));
+//					}else{
+						String content =courseList.get(i).getPdfAddress();
+						String playAddress = courseList.get(i).getPlayAddress();
+						//随机生成字母和数字的组合加密录音文件地址
+						String pwd1 = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+						stringBuffer1.insert(50, pwd1).toString();
+						courseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+						//加密PlayAddressM3u8
+//						String playAddress1 = courseList.get(i).getPlayAddressM3u8();
+//						String pwd2 = PasswdEncryption.getStringRandom();
+//						StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//						stringBuffer2.insert(50, pwd2).toString();
+//						courseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+
+						if(!StringUtils.isNullOrEmpty(content)){
+							//随机生成字母和数字的组合加密PDF地址
+							String pwd = PasswdEncryption.getStringRandom();
+							StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(courseList.get(i).getPdfAddress()));
+							stringBuffer.insert(50, pwd).toString();
+							courseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//							catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+						}else{
+							courseList.get(i).setPdfAddress(commonService.appenUrl(content));
+						}
+					}
+//				}
+				return ok("查询成功", courseList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findTeachersList
+	 * @Description: (查询所有讲师)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findTeachersList")
+	public JSONObject findTeachersList(String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> teachersList = null;
+				teachersList=businessService.findTeachersList();
+				return ok("查询成功", teachersList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCourseListByTeacher
+	 * @Description: (根据讲师姓名查询课程)
+	 * @param teacher 讲师姓名
+	 * @param employeeId 企业学员ID
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseListByTeacher")
+	public JSONObject findCourseListByTeacher(String teacher,Long employeeId,Page page,String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> courseList = null;
+				courseList=businessService.findCourseListByTeacher(teacher,page);
+				//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+				for(int i=0;i<courseList.size();i++){
+					//是否推荐
+					if(businessService.queryRecommend(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifRecommend = (long) 1;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}else{
+						Long ifRecommend = (long) 0;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}
+					//是否在学习计划
+					if(businessService.queryStudyPlan(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifStudyPlan = (long) 1;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}else{
+						Long ifStudyPlan = (long) 0;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}
+					courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+					//根据版本号判断是否加密PDF地址
+//					if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//						courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+//						courseList.get(i).setPdfAddress(commonService.appenUrl(courseList.get(i).getPdfAddress()));
+//					}else{
+						String content =courseList.get(i).getPdfAddress();
+						String playAddress = courseList.get(i).getPlayAddress();
+						//随机生成字母和数字的组合加密录音文件地址
+						String pwd1 = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+						stringBuffer1.insert(50, pwd1).toString();
+						courseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+						//加密PlayAddressM3u8
+//						String playAddress1 = courseList.get(i).getPlayAddressM3u8();
+//						String pwd2 = PasswdEncryption.getStringRandom();
+//						StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//						stringBuffer2.insert(50, pwd2).toString();
+//						courseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+						if(!StringUtils.isNullOrEmpty(content)){
+							//随机生成字母和数字的组合加密PDF地址
+							String pwd = PasswdEncryption.getStringRandom();
+							StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(courseList.get(i).getPdfAddress()));
+							stringBuffer.insert(50, pwd).toString();
+							courseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//							catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+						}else{
+							courseList.get(i).setPdfAddress(commonService.appenUrl(content));
+						}
+					}
+//				}
+				return ok("查询成功", courseList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findEmployeeDetail 
+	 * @Description: (查询学员详细信息)
+	 * @param employeeId 企业学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findEmployeeDetail")
+	public JSONObject findEmployeeDetail(Long employeeId,String client,String version,String deviceId){
+		try{
+			if(NumberUtils.isNullOrZero(employeeId)){
+				return error("参数缺失");
+			}
+			Employee employee1 = businessService.findEmployeeDetail(employeeId);
+			if(employee1==null){
+				return status(800, "用户账号已失效");
+			}
+			if(employeeId!=33){
+				//查询最近一次登录的信息
+				LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+				//查询学员此种设备、此个设备ID上次登录的明细
+				LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+				if(loginDetail!=null){
+					Long detailId = loginDetail.getId();
+					Long lastId = lastLogin.getId();
+					//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，如果最后一次的大于本机登陆的，那么就是在异地登录了
+					if(lastId>detailId){
+						SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+						return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+					}
+				}
+			}
+			//完成的课程数量
+			List<CatalogCourseList> list=businessService.queryStudyFinishedList(employeeId);
+			//收藏的课程数量
+			List<CatalogCourseList> planlist = businessService.queryStudyPlanList(employeeId);
+			//学习总时长
+			int studyLength = businessService.findEmployeeStudyTimeCount(employeeId);
+			//查询学员学习时长目前所在的名次位置
+			float persent =0;
+			//获取学员成绩的排名
+			String rowNo1 = businessService.findEmployeeStudyTimeNo(employeeId);
+			if(StringUtils.isNullOrEmpty(rowNo1)){
+				rowNo1="0";
+			}
+			int rowNo = Integer.parseInt(rowNo1) + 0;
+			//获取试题总的参考人数
+			int ticketCount = businessService.findEmployeeStudyCount(employeeId);
+			//取学习时长的最长和最短记录
+			//取系列考题的最高分数和低分
+			int timeMax = businessService.findStudyTimeMax(employeeId);
+			int timeMin = businessService.findStudyTimeMin(employeeId);
+			if(rowNo == ticketCount){
+				persent = 100;
+			}else{
+				//获取此学员成绩所在的范围
+				if(timeMax == studyLength){
+					persent = 100;
+				}else if(timeMin == studyLength){
+					persent = 0;
+				}else{
+					persent = (rowNo*100/ticketCount);
+				}
+			}
+			Employee employee = new Employee();
+			employee.setStudyPlanCount(businessService.findEmployeePlanCount(employeeId));
+			employee.setStudyTimeCount(studyLength);
+			employee.setId(employee1.getId());
+			employee.setAvatar(commonService.appenUrl(employee1.getAvatar()));
+			employee.setMobile(employee1.getMobile());
+			employee.setName(employee1.getName());
+			employee.setSex(employee1.getSex());
+			employee.setBusinessId(employee1.getBusinessId());
+			employee.setBusinessName(employee1.getBusinessName());
+			employee.setCommodityId(employee1.getCommodityId());
+			employee.setIfBusiness(employee1.getIfBusiness());
+			employee.setStudyTimePersent(persent);
+			if(rowNo==0){
+				employee.setStudyTimeRanking(rowNo);
+			}else{
+				employee.setStudyTimeRanking(ticketCount-rowNo+1);
+			}
+			//完成的课程数量
+			employee.setFinishedCount(list.size());
+			//收藏的课程数量
+			employee.setCommentCount(planlist.size());
+			//判断用户是否为自注册用户，如果是，则查询会员过期日期
+			if(employee1.getIfBusiness()==1){
+			    MemberPayInfo payInfo = businessService.queryMemberPayByEmployeeId(employeeId);
+			    if(payInfo!=null){
+			    	Long monthCount = businessService.queryMonthCountByEmployeeId(employeeId);
+			    	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//			    	Date now = sdf.parse(payInfo.getCreateAt());
+			    	Calendar calendar = Calendar.getInstance();
+			    	calendar.setTime(payInfo.getCreateAt());
+			    	calendar.add(Calendar.MONTH,  Integer.valueOf(monthCount.toString()));
+			    	SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			    	System.out.println(sdf.format(calendar.getTime()));
+			    	DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+			    	Date now = new Date();
+			    	Date dateTime1 = dateFormat.parse(df.format(now));
+//			    	//会员过期时间
+			        Date dateTime2 = dateFormat.parse(df.format(calendar.getTime()));
+			        int i = dateTime1.compareTo(dateTime2);  
+			        System.out.println(i < 0);
+			        //是否过期
+			        if(i < 0){
+			        	employee.setOverdueDate(sdf.format(calendar.getTime()));
+			        }else{
+			        	employee.setOverdueDate(null);
+			        }
+			    }else{
+			    	employee.setOverdueDate(null);
+			    }
+			}else{
+				employee.setOverdueDate(null);
+			}
+			return ok("ok",employee);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * Title: saveBusinessFeedBack 
+	 * Description: (保存意见反馈)
+	 * 
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/saveBusinessFeedBack")
+	public JSONObject saveBusinessFeedBack(String content, Long employeeId,String client,String version) {
+		try {
+			if (StringUtils.isNullOrEmpty(content) || NumberUtils.isNullOrZero(employeeId)) {
+				return error("参数缺失");
+			}
+
+			BusinessFeedBack feedBack = new BusinessFeedBack();
+			feedBack.setEmployeeId(employeeId);
+			feedBack.setContent(content);
+			feedBack.setVersion(version);
+
+			if (businessService.saveBusinessFeedBack(feedBack)) {
+				return ok("保存成功");
+			}
+			return error("保存失败");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findOnlineCourseDetailById 
+	 * @Description: (根据线上课程ID查询线上课程内容)
+	 * @param courseId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findOnlineCourseDetailById")
+	public JSONObject findOnlineCourseDetailById(Long courseId,Long employeeId,Integer type,String client,String deviceId,String version){
+		try{
+			if(NumberUtils.isNullOrZero(courseId)){
+				return error("参数缺失");
+			}
+			if(employeeId!=33){
+				//查询最近一次登录的信息
+				LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+				//查询学员此种设备、此个设备ID上次登录的明细
+				LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+				if(loginDetail!=null){
+					Long detailId = loginDetail.getId();
+					Long lastId = lastLogin.getId();
+					//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，如果最后一次的大于本机登陆的，那么就是在异地登录了
+					if(lastId>detailId){	
+						SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+						return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+					}
+				}
+			}
+			CatalogCourseList info = businessService.findOnlineCourseDetailById(courseId);
+			if(info!=null){
+				if(NumberUtils.isNullOrZero(type)){
+					info.setCoursePpt(info.getCoursePpt()+css);
+				}
+				//是否推荐
+				if(businessService.queryRecommend(info.getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					info.setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					info.setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(info.getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					info.setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					info.setIfStudyPlan(ifStudyPlan);
+				}
+				//学习进度
+				if(businessService.queryStudyIfFinished(courseId,employeeId).size()>0){
+					info.setIsFinished(businessService.queryStudyIfFinished(courseId,employeeId).get(0).getIsFinished());
+				}else{
+					Long isFinished = (long) 0;
+					info.setIfStudyPlan(isFinished);
+				}
+				info.setAvatar(commonService.appenUrl(info.getAvatar()));
+				info.setPdfAddress(commonService.appenUrl(info.getPdfAddress()));
+//				if(!StringUtils.isNullOrEmpty(info.getPdfAddress())){
+////					info.setPdfAddress(commonService.appenUrl(info.getPdfAddress()));
+//					//随机生成字母和数字的组合
+//					String pwd = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(info.getPdfAddress()));
+//					stringBuffer.insert(50, pwd).toString();
+//					info.setPdfAddress(stringBuffer.toString().toUpperCase());
+//				}
+				//根据版本号判断是否加密PDF地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					info.setAvatar(commonService.appenUrl(info.getAvatar()));
+//					info.setPdfAddress(commonService.appenUrl(info.getPdfAddress()));
+//				}else{
+					String content =info.getPdfAddress();
+					String playAddress = info.getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					info.setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = info.getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					info.setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(info.getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						info.setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						info.setPdfAddress(commonService.appenUrl(content));
+					}
+//				}
+				return ok("ok",info);
+			}
+			return ok("error","查询失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: addMemberPayDetail 
+	 * @Description: (添加会员购买记录)
+	 * @param employeeId 客户ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/addMemberPayDetail")
+	public JSONObject addMemberPayDetail(Long price,Long employeeId,Long memberType,String deviceId,String version){
+		try{
+			if(NumberUtils.isNullOrZero(employeeId)){
+				return error("客户ID参数缺失");
+			}
+			if(NumberUtils.isNullOrZero(price)){
+				return error("价格参数缺失");
+			}
+//			if(!("1.6.1").equals(version)){
+//				return error("会员购买功能暂未开通，敬请期待！");
+//			}
+			if(1==1){
+				return error("会员购买功能暂未开通，敬请期待！");
+			}
+			//如果是游客购买会员，根据设备Id生成用户信息
+			if(employeeId==33){
+				//根据设备Id查询是否已经注册过
+				Employee employee =businessService.findEmployeeDetailByDeviceId(deviceId);
+				//如果已经购买过会员，则累加会员时间
+				if(employee!=null){
+					businessService.addMemberPayDetail(price,employee.getId(),memberType);
+					//查询最后一次的订单信息
+					MemberPayInfo memberPayInfo = businessService.queryMemberPayDetail(employee.getId());
+					return ok("保存订单成功",memberPayInfo);
+				}else{
+					employee = new Employee();
+					employee.setMobile("");
+					employee.setPassword(PasswdEncryption.generate("123456"));
+					employee.setName("匿名用户");
+					employee.setDeviceId(deviceId);
+					// 保存默认头像
+					employee.setAvatar(commonService.getRandomAvatar());
+					memberService.businessRegisterNiMing(employee);
+					// 返回登录信息
+					businessService.addMemberPayDetail(price,employee.getId(),memberType);
+					//查询最后一次的订单信息
+					MemberPayInfo memberPayInfo = businessService.queryMemberPayDetail(employee.getId());
+					return ok("保存订单成功",memberPayInfo);
+				}
+			}
+			Employee employee = businessService.findEmployeeDetail(employeeId);
+			if(employee.getIfBusiness()!=1){
+				return error("非注册用户不能购买会员");
+			}
+			businessService.addMemberPayDetail(price,employeeId,memberType);
+			//查询最后一次的订单信息
+			MemberPayInfo memberPayInfo = businessService.queryMemberPayDetail(employeeId);
+			return ok("保存订单成功",memberPayInfo);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateMemberPay
+	 * @Description: (添加会员购买记录)
+	 * @param payId 订单ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateMemberPay")
+	public JSONObject updateMemberPay(Long payId,Long employeeId){
+		try{
+			if(businessService.updateMemberPay(payId)){
+				//查询最后一次的订单信息
+				Employee employee = businessService.findEmployeeDetail(employeeId);
+				//判断用户是否为自注册用户，如果是，则查询会员过期日期
+				if(employee.getIfBusiness()==1){
+				    MemberPayInfo payInfo = businessService.queryMemberPayByEmployeeId(employeeId);
+				    if(payInfo!=null){
+				    	Long monthCount = businessService.queryMonthCountByEmployeeId(employeeId);
+				    	SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//				    	Date now = sdf.parse(payInfo.getCreateAt());
+				    	Calendar calendar = Calendar.getInstance();
+				    	calendar.setTime(payInfo.getCreateAt());
+				    	calendar.add(Calendar.MONTH,  Integer.valueOf(monthCount.toString()));
+				    	SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				    	System.out.println(sdf.format(calendar.getTime()));
+				    	DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				    	Date now = new Date();
+				    	Date dateTime1 = dateFormat.parse(df.format(now));
+//				    	//会员过期时间
+				        Date dateTime2 = dateFormat.parse(df.format(calendar.getTime()));
+				        int i = dateTime1.compareTo(dateTime2);  
+				        System.out.println(i < 0);
+				        //是否过期
+				        if(i < 0){
+				        	employee.setOverdueDate(sdf.format(calendar.getTime()));
+				        }else{
+				        	employee.setOverdueDate(null);
+					        }
+					    }else{
+					    	employee.setOverdueDate(null);
+					    }
+					return ok("更新订单状态成功",employee);
+				}else{
+					return error("非注册用户");
+				}
+			}
+			return error("更新订单状态失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: saveBusinessScore
+	 * @Description: (保存分数)
+	 * @param score
+	 *            分数
+	 * @param unionId
+	 *            唯一ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveBusinessScore")
+	public JSONObject saveBusinessScore(Integer score, Long employeeId,Long parentId,String parentName,Long topParentId,Long examType) {
+		try {
+			if (score == null || parentId == null ) {
+				return error("参数错误!");
+			}
+			Employee employee = businessService.findEmployeeDetail(employeeId);
+			BusinessTicket ticket = new BusinessTicket();
+			ticket.setMemberId(employeeId);
+			ticket.setAvatar(commonService.appenUrl(employee.getAvatar()));
+			ticket.setNickName(employee.getName());
+			ticket.setScore(score);
+			ticket.setParentId(parentId);
+			ticket.setParentName(parentName);
+			ticket.setTopParentId(topParentId);
+			ticket.setExamType(examType);
+			commonService.saveBusinessScore(ticket);
+			return ok("ok", ticket);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findFirstTypeList
+	 * @Description: (查询全部课程一级目录)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findFirstTypeList")
+	public JSONObject findFirstTypeList(Page page,String client,String version) {
+		try {
+			List<FirstType> firstTypeList = null;
+			firstTypeList=businessService.findFirstTypeList(page);
+			if(firstTypeList.size()>0){
+				for(int i=0;i<firstTypeList.size();i++){
+					Long id = firstTypeList.get(i).getId();
+					List<SecondType> secondTypeList=businessService.findSecondTypeList(id);
+					firstTypeList.get(i).setTypeTwo(secondTypeList);
+				}
+			}
+			
+			return ok("查询成功", firstTypeList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findSecondTypeList
+	 * @Description: (查询全部课程一级目录)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findSecondTypeList")
+	public JSONObject findSecondTypeList(Long parentId,String client,String version) {
+		if(NumberUtils.isNullOrZero(parentId)){
+			return error("parentId参数有误");
+		}
+		try {
+			List<SecondType> secondTypeList = null;
+			secondTypeList=businessService.findSecondTypeList(parentId);
+			return ok("查询成功", secondTypeList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCatalogCourseListHotByType
+	 * @Description: (根据播放时间等查询条件查询课程分类下热门课程列表)
+	 * @param typeId 关键字ID
+	 * @param level 级别         
+	 * @param employeeId  企业用户ID
+	 * @param timeLength 时长
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCatalogCourseListHotByType")
+	public JSONObject findCatalogCourseListHotByType(int firstTypeId,int secondTypeId,Long employeeId,int timeLength,int level,Page page,String client,String version,String deviceId) {
+		try {
+			if(NumberUtils.isNullOrZero(timeLength) && NumberUtils.isNullOrZero(firstTypeId) && NumberUtils.isNullOrZero(secondTypeId) && NumberUtils.isNullOrZero(level)){
+				return error("参数缺失");
+			}
+			List<CatalogCourseList> catalogCourseList = null;
+			if(employeeId!=33){
+				//查询最近一次登录的信息
+				LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+				//查询学员此种设备、此个设备ID上次登录的明细
+				LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+				if(loginDetail!=null){
+					Long detailId = loginDetail.getId();
+					Long lastId = lastLogin.getId();
+					//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，如果最后一次的大于本机登陆的，那么就是在异地登录了
+					if(lastId>detailId){	
+						SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+						return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+					}
+				}
+			}
+			
+//			Employee employee = businessService.findEmployeeDetail(employeeId);
+//			Long ifBusiness = employee.getIfBusiness();
+			//判断用户是否为苹果端注册用户
+			//1:苹果端注册用户 不为1：后来录入用户
+//			if(ifBusiness==1){
+//				catalogCourseList =businessService.findPersonCatalogCourseList(keyWordsId,timeLength,level,page);
+//			}else{
+				catalogCourseList=businessService.findCatalogCourseListByType(firstTypeId,secondTypeId,timeLength,level,page);
+//			}
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<catalogCourseList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				catalogCourseList.get(i).setAvatar(commonService.appenUrl(catalogCourseList.get(i).getAvatar()));
+//				catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+				//根据版本号判断是否加密PDF地址
+//				if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//					catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+//				}else{
+					String content =catalogCourseList.get(i).getPdfAddress();
+					String playAddress = catalogCourseList.get(i).getPlayAddress();
+					//随机生成字母和数字的组合加密录音文件地址
+					String pwd1 = PasswdEncryption.getStringRandom();
+					StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+					stringBuffer1.insert(50, pwd1).toString();
+					catalogCourseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+					//加密PlayAddressM3u8
+//					String playAddress1 = catalogCourseList.get(i).getPlayAddressM3u8();
+//					String pwd2 = PasswdEncryption.getStringRandom();
+//					StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//					stringBuffer2.insert(50, pwd2).toString();
+//					catalogCourseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+					if(!StringUtils.isNullOrEmpty(content)){
+						//随机生成字母和数字的组合加密PDF地址
+						String pwd = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(catalogCourseList.get(i).getPdfAddress()));
+						stringBuffer.insert(50, pwd).toString();
+						catalogCourseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//						catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+					}else{
+						catalogCourseList.get(i).setPdfAddress(commonService.appenUrl(content));
+					}
+				}
+//			}
+			return ok("查询成功", catalogCourseList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title:bundingMobile
+	 * @Description: (企业APP匿名用户绑定手机号)
+	 * @param mobile
+	 *            手机号
+	 * @param password
+	 *            密码
+	 * @param code
+	 *            验证码
+	 * @param info
+	 *            手机信息
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("bundingMobile")
+	public JSONObject bundingMobile(String mobile, String password, String code, String deviceId,String version) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password)
+					|| StringUtils.isNullOrEmpty(code)) {
+				return error("参数缺失");
+			}
+//			if(!("1.6.1").equals(version)){
+			if(1==1){
+				return error("绑定功能暂未开通，敬请期待！");
+			}
+			
+			Code smsCode = codeService.findCode(code, mobile);
+			if (smsCode == null) {
+				return error("验证码输入错误!");
+			}
+			// 验证用户是否存在
+			Employee employee = memberService.findBusinessLoginMemberByMobile(mobile);
+			//根据设备Id查询是否已经注册过
+			Employee employee1 =businessService.findEmployeeDetailByDeviceId(deviceId);
+			if(employee!=null){
+				//验证密码是否正确
+				if (employee.getPassword().equals(PasswdEncryption.MD5(password)) || PasswdEncryption.verify(password, employee.getPassword())){
+					//将匿名用户下的会员信息绑定到手机号码所在的用户
+					businessService.updateMemberPayById(employee.getId(),employee1.getId());
+					//删除现有的用户信息
+					businessService.updateEmployeeDetailByDeviceId(employee1.getId());
+					LoginInfo login = new LoginInfo();
+					login.setAvatar(commonService.appenUrl(employee.getAvatar()));
+					login.setId(employee.getId());
+					login.setNickname(employee.getName());
+					login.setMobile(mobile);
+					login.setIfBusiness(employee.getIfBusiness());
+					return ok("绑定成功",login);
+				}else{
+					return error("手机号码已经被注册过，但是绑定时输入的密码不正确");
+				}
+			}
+			employee = new Employee();
+			employee.setMobile(mobile);
+			employee.setPassword(PasswdEncryption.generate(password));
+			if (mobile.length() > 4) {
+				employee.setName("用户" + mobile.substring(mobile.length() - 4));
+			} else {
+				employee.setName("用户" + mobile);
+			}
+			// 保存默认头像
+			employee.setAvatar(commonService.getRandomAvatar());
+			memberService.businessRegister(employee, smsCode,null);
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAvatar(commonService.appenUrl(employee.getAvatar()));
+			login.setId(employee.getId());
+			login.setNickname(employee.getName());
+			login.setMobile(mobile);
+			login.setIfBusiness(employee.getIfBusiness());
+			return ok("注册成功", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: addCourseComment 
+	 * @Description: (记录学员课程评论) 
+	 * @param courseId 课程ID
+	 * @param employeeId 学员ID
+	 * @param comment 课程评论内容
+	 * @param studyTime 课程学习时长，单位秒
+	 * @param courseTime 课程时长，只有学习完成时才传，大小为录音课件的时间长度，单位秒
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/addCourseComment")
+	public JSONObject addCourseComment(Long courseId,Long employeeId,String comment,Page page,String client,String version){
+		try{
+			if(NumberUtils.isNullOrZero(courseId) || NumberUtils.isNullOrZero(employeeId) || StringUtils.isNullOrEmpty(comment)){
+				return error("参数缺失");
+			}
+			businessService.addCourseComment(courseId,employeeId,comment);
+			List<Comment> commentList = null;
+			commentList = businessService.findCourseCommentList(courseId,page);
+			if(commentList.size()>0){
+				for(int i=0;i<commentList.size();i++){
+					commentList.get(i).setCreateAt(commentList.get(i).getCreateAt().substring(0, 19));
+					commentList.get(i).setAvatar(commonService.appenUrl(commentList.get(i).getAvatar()));
+				}
+			}
+			return ok("评论成功",commentList);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCourseCommentList 
+	 * @Description: (记录学员课程评论) 
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseCommentList")
+	public JSONObject findCourseCommentList(Long courseId,Long employeeId,Page page,String client,String version){
+		try{
+			if(NumberUtils.isNullOrZero(courseId)){
+				return error("参数缺失");
+			}
+			List<Comment> commentList = null;
+			commentList = businessService.findCourseCommentList(courseId,page);
+			if(commentList.size()>0){
+				for(int i=0;i<commentList.size();i++){
+					commentList.get(i).setCreateAt(commentList.get(i).getCreateAt().substring(0, 19));
+					commentList.get(i).setAvatar(commonService.appenUrl(commentList.get(i).getAvatar()));
+					//查询是否点赞
+					List<CommentPraise> praiseList = null;
+					praiseList = businessService.queryCommentPraise(commentList.get(i).getId(),employeeId);
+					if(praiseList.size()>0){
+						commentList.get(i).setIfPraise(1L);
+					}else{
+						commentList.get(i).setIfPraise(0L);
+					}
+				}
+			}
+			return ok("查询成功",commentList);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateStudyPlan
+	 * @Description: (更改学习计划状态)
+	 * @param employeeId 学员ID
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/commentPraise")
+	public JSONObject commentPraise(Long employeeId,Long commentId,String client,String version) {
+		try {
+			List<CommentPraise> praiseList = null;
+			praiseList = businessService.queryCommentPraise(commentId,employeeId);
+			if(praiseList.size()>0){
+				businessService.updateCommentPraise(praiseList.get(0).getId());
+				//修改评论点赞数量-1
+				businessService.updateCommentPraiseNum("-1",commentId);
+//				return ok("取消收藏成功");
+				return status(300, "取消赞成功");
+			}else{
+				List<CommentPraise> praiseListExist = null;
+				praiseList = businessService.queryCommentPraiseExist(commentId,employeeId);
+				//判断学员历史是否收藏过此课程，如果收藏过并且已经取消收藏，则把数据还原
+				if(praiseList.size()>0){
+					businessService.updateCommentPraise(praiseList.get(0).getId());
+					//修改评论点赞数量+1
+					businessService.updateCommentPraiseNum("1",commentId);
+					return ok("赞成功");
+				}else{
+					businessService.saveCommentPraise(commentId,employeeId);
+					//修改评论点赞数量+1
+					businessService.updateCommentPraiseNum("1",commentId);
+					return ok("赞成功");
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: batchCollection
+	 * @Description: (批量收藏)
+	 * @param employeeId 学员ID
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/batchCollection")
+	public JSONObject batchCollection(Long employeeId,String courselist,String client,String version) {
+		try {
+			
+			if(courselist!=null && !StringUtils.isNullOrEmpty(courselist)){
+				String[] arr = courselist.split(",");
+			    List<String> list = Arrays.asList(arr);
+				if(list.size()>0){
+					List<StudyPlan> planList = null;
+					for(int i=0;i<list.size();i++){
+						//判断课程现在是否已经收藏了
+						planList = businessService.queryStudyPlan(Long.parseLong(list.get(i)),employeeId);
+						//如果没收藏则执行收藏操作
+						if(planList.size()<=0){
+							List<StudyPlan> planListExist = null;
+							planListExist = businessService.queryStudyPlanExist(Long.parseLong(list.get(i)),employeeId);
+							//判断学员历史是否收藏过此课程，如果收藏过并且已经取消收藏，则把数据还原
+							if(planListExist.size()>0){
+								businessService.updateStudyPlan(planListExist.get(0).getId());
+							}else{
+								businessService.saveStudyPlan(Long.parseLong(list.get(i)),employeeId);
+							}
+						}
+					}
+					return ok("收藏成功");
+				}
+			}
+			
+			return ok("收藏成功");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCourseListByTitle
+	 * @Description: (根据课程名称查询课程)
+	 * @param title 课程名称
+	 * @param employeeId 企业学员ID
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseListByTitle")
+	public JSONObject findCourseListByTitle(String title,Long employeeId,Page page,String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> courseList = null;
+				courseList=businessService.findCourseListByTitle(title,page);
+				//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+				for(int i=0;i<courseList.size();i++){
+					//是否推荐
+					if(businessService.queryRecommend(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifRecommend = (long) 1;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}else{
+						Long ifRecommend = (long) 0;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}
+					//是否在学习计划
+					if(businessService.queryStudyPlan(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifStudyPlan = (long) 1;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}else{
+						Long ifStudyPlan = (long) 0;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}
+//					courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+					//根据版本号判断是否加密PDF地址
+//					if(!("1.6.0").equals(version) && !("1.5.9").equals(version)){
+//						courseList.get(i).setPdfAddress(commonService.appenUrl(courseList.get(i).getPdfAddress()));
+//					}else{
+						String content =courseList.get(i).getPdfAddress();
+						String playAddress = courseList.get(i).getPlayAddress();
+						//随机生成字母和数字的组合加密录音文件地址
+						String pwd1 = PasswdEncryption.getStringRandom();
+						StringBuffer stringBuffer1 = new StringBuffer(commonService.appenUrl(playAddress));
+						stringBuffer1.insert(50, pwd1).toString();
+						courseList.get(i).setPlayAddress(stringBuffer1.toString().toUpperCase());
+						//加密PlayAddressM3u8
+//						String playAddress1 = courseList.get(i).getPlayAddressM3u8();
+//						String pwd2 = PasswdEncryption.getStringRandom();
+//						StringBuffer stringBuffer2 = new StringBuffer(commonService.appenUrl(playAddress1));
+//						stringBuffer2.insert(50, pwd2).toString();
+//						courseList.get(i).setPlayAddressM3u8(stringBuffer2.toString().toUpperCase());
+						if(!StringUtils.isNullOrEmpty(content)){
+							//随机生成字母和数字的组合加密PDF地址
+							String pwd = PasswdEncryption.getStringRandom();
+							StringBuffer stringBuffer = new StringBuffer(commonService.appenUrl(courseList.get(i).getPdfAddress()));
+							stringBuffer.insert(50, pwd).toString();
+							courseList.get(i).setPdfAddress(stringBuffer.toString().toUpperCase());
+//							catalogList.get(i).setAvatar(stringBuffer.toString().toUpperCase());
+						}else{
+							courseList.get(i).setPdfAddress(commonService.appenUrl(content));
+						}
+					}
+//				}
+				return ok("查询成功", courseList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findStudyTimeRankingList
+	 * @Description: (查询学习时长排行榜)
+	 * @param employeeId 企业学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findStudyTimeRankingList")
+	public JSONObject findStudyTimeRankingList(Long employeeId,String client,String version,String deviceId){
+		try{
+			if(NumberUtils.isNullOrZero(employeeId)){
+				return error("参数缺失");
+			}
+			Employee employee1 = businessService.findEmployeeDetail(employeeId);
+			if(employee1==null){
+				return status(800, "用户账号已失效");
+			}
+			if(employeeId!=33){
+				//查询最近一次登录的信息
+				LoginDetail lastLogin = memberService.findBusinessLoginDetailById(employeeId);
+				//查询学员此种设备、此个设备ID上次登录的明细
+				LoginDetail loginDetail = memberService.findBusinessLoginDetail(employeeId,client,deviceId);
+				if(loginDetail!=null){
+					Long detailId = loginDetail.getId();
+					Long lastId = lastLogin.getId();
+					//如果最近一次登录的记录ID与此设备最后一次登录的记录Id是否相符，如果最后一次的大于本机登陆的，那么就是在异地登录了
+					if(lastId>detailId){
+						SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+						return status(300, "此账号于"+df.format(lastLogin.getLoginTime()).substring(0,19)+"在其他设备登录！");
+					}
+				}
+			}
+			//完成的课程数量
+			List<CatalogCourseList> list=businessService.queryStudyFinishedList(employeeId);
+			//收藏的课程数量
+			List<CatalogCourseList> planlist = businessService.queryStudyPlanList(employeeId);
+			//学习总时长
+			int studyLength = businessService.findEmployeeStudyTimeCount(employeeId);
+			//查询学员学习时长目前所在的名次位置
+			float persent =0;
+			//获取学员成绩的排名
+			String rowNo1 = businessService.findEmployeeStudyTimeNo(employeeId);
+			if(StringUtils.isNullOrEmpty(rowNo1)){
+				rowNo1="0";
+			}
+			int rowNo = Integer.parseInt(rowNo1) + 0;
+			//获取试题总的参考人数
+			int ticketCount = businessService.findEmployeeStudyCount(employeeId);
+			//取学习时长的最长和最短记录
+			//取系列考题的最高分数和低分
+			int timeMax = businessService.findStudyTimeMax(employeeId);
+			int timeMin = businessService.findStudyTimeMin(employeeId);
+			if(rowNo == ticketCount){
+				persent = 100;
+			}else{
+				//获取此学员成绩所在的范围
+				if(timeMax == studyLength){
+					persent = 100;
+				}else if(timeMin == studyLength){
+					persent = 0;
+				}else{
+					persent = (rowNo*100/ticketCount);
+				}
+			}
+			//查询学习时长排名前20的学员信息
+			List<Employee> employeeList = businessService.findStudyTimeRankingList();
+			for(int i=0;i<employeeList.size();i++){
+				employeeList.get(i).setStudyPlanCount(businessService.findEmployeePlanCount(employeeList.get(i).getId()));
+				employeeList.get(i).setStudyTimeCount(businessService.findEmployeeStudyTimeCount(employeeList.get(i).getId()));
+				employeeList.get(i).setId(employeeList.get(i).getId());
+				employeeList.get(i).setAvatar(commonService.appenUrl(employeeList.get(i).getAvatar()));
+				employeeList.get(i).setName(employeeList.get(i).getName());
+				//完成的课程数量
+				List<CatalogCourseList> listi=businessService.queryStudyFinishedList(employeeList.get(i).getEmployeeId());
+				employeeList.get(i).setFinishedCount(listi.size());
+			}
+		
+			return ok("ok",employeeList);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+}

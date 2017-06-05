@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.UserDao">
+	<!-- 根据账号查询后台用户 -->
+	<select id="findUserByAccount" parameterType="java.lang.String" resultType="cn.ichazuo.commons.util.model.LoginUser">
+		select a.account,a.id,a.real_name as realName,a.`password`,a.role_id as roleId,r.`code`,r.role_name as roleName 
+		from s_user a left join s_role r on r.id = a.role_id where a.account = #{account} and a.status = 1
+	</select>
+	
+	<!-- 查询账号数量 -->
+	<select id="findAccountCount" parameterType="java.lang.String" resultType="java.lang.Integer">
+		select count(*) from s_user where 1=1 and status = 1 and account = #{account}
+	</select>
+	
+	<!-- 修改后台用户信息 -->
+	<update id="updateUserInfo" parameterType="cn.ichazuo.model.table.User">
+		update s_user 
+		<set>
+			<if test="password != null">
+				password = #{password},
+			</if>
+			<if test="roleId != null">
+				role_id = #{roleId},
+			</if>
+			<if test="realName != null">
+				real_name = #{realName},
+			</if>
+			<if test="remark != null">
+				remark = #{remark},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			version = version + 1,update_at = now() 
+		</set>
+		
+		where id = #{id} and version = #{version}
+	</update>
+	
+	<!-- 保存后台用户 -->
+	<insert id="saveUser" parameterType="cn.ichazuo.model.table.User">
+		insert into s_user(account,password,role_id,real_name,remark,create_at)
+		values(#{account},#{password},#{roleId},#{realName},#{remark},now())
+	</insert>
+	
+	<!-- 查询单条后台用户信息 -->
+	<select id="findUserInfoById" parameterType="java.lang.Long" resultType="cn.ichazuo.model.table.User">
+		select id,account,`password`,role_id as roleId,real_name as realName,remark,`status`,version 
+		from s_user where id = #{id}
+	</select>
+	
+	<!-- 查询后台用户列表 -->
+	<select id="findUserList" parameterType="java.util.Map" resultType="cn.ichazuo.model.admin.UserListInfo">
+		select s.id,s.account,s.role_id as roleId,s.account,r.role_name as roleName,s.real_name as realName,s.status,s.remark 
+		from s_user s left join s_role r on r.id = s.role_id 
+		where 1 = 1 and s.status = 1
+		<if test="realName != null">
+			 and s.real_name like #{realName}
+		</if>
+		<if test="account != null">
+			 and s.account like #{account} 
+		</if>
+		limit #{page},#{pageCount}
+	</select>
+	
+	<!-- 查询后台用户数量 -->
+	<select id="findUserListCount" parameterType="java.util.Map" resultType="java.lang.Integer">
+		select count(*) from s_user s where 1 = 1 and s.status = 1
+		<if test="realName != null">
+			 and s.real_name like #{realName}
+		</if>
+		<if test="account != null">
+			 and s.account like #{account} 
+		</if>
+	</select>
+	
+</mapper>

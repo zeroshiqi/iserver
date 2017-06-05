@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.MemberDao">
+	<!-- 根据联合ID查询用户信息 -->
+	<select id="findMemberByUnionId" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.Member">
+		select m.id,m.mobile,m.`password`,m.nick_name as
+		nickName,m.login_number as loginNumber,m.avatar,m.access_token as
+		accessToken,m.client_version as clientVersion,
+		m.device_id as
+		deviceId,m.status,m.version from t_third_member t left join t_member m
+		on m.id = t.member_id where t.unionid = #{unionid} and t.status = 1
+		and m.status = 1 limit 1
+	</select>
+
+	<!-- 根据用户ID查询openId -->
+	<select id="findOpenIdByMemberId" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select open_id from t_third_member where member_id =
+		#{memberId} and mark = 1 and status = 1 order by id limit 1
+	</select>
+
+	<!-- 根据ID查询用户 -->
+	<select id="findMemberById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Member">
+		select id,mobile,`password`,nick_name as
+		nickName,login_number as loginNumber,avatar,access_token as
+		accessToken,client_version as clientVersion,
+		device_id as
+		deviceId,version,status from t_member where id=#{id} and status = 1
+		limit 1
+	</select>
+
+	<!-- 根据手机号查询用户 -->
+	<select id="findLoginMemberByMobile" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.Member">
+		select id,mobile,`password`,nick_name as
+		nickName,login_number as loginNumber,avatar,access_token as
+		accessToken,client_version as clientVersion,
+		device_id as
+		deviceId,status,version from t_member where mobile=#{mobile} and
+		status = 1 limit 1
+	</select>
+
+	<!-- 更新用户信息 -->
+	<update id="updateMember" parameterType="cn.ichazuo.model.table.Member">
+		update t_member
+		<set>
+			<if test="password != null">
+				password = #{password},
+			</if>
+			<if test="nickName != null">
+				nick_name = #{nickName},
+			</if>
+			<if test="avatar != null">
+				avatar = #{avatar},
+			</if>
+			<if test="accessToken != null">
+				access_token = #{accessToken},
+			</if>
+			<if test="clientVersion != null">
+				client_version = #{clientVersion},
+			</if>
+			<if test="deviceId != null">
+				device_id = #{deviceId},
+			</if>
+			<if test="loginNumber != null">
+				login_number = #{loginNumber},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			update_at = now(),version = version + 1
+		</set>
+		where 1=1 and id = #{id} and version = #{version}
+	</update>
+
+	<!-- 保存用户 -->
+	<insert id="saveMember" parameterType="cn.ichazuo.model.table.Member"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_member(mobile,password,nick_name,avatar,access_token,client_version,device_id,create_at)
+		values(#{mobile},#{password},#{nickName},#{avatar},#{accessToken},#{clientVersion},#{deviceId},now())
+	</insert>
+
+	<!-- 保存用户信息 -->
+	<insert id="saveMemberInfo" parameterType="cn.ichazuo.model.table.MemberInfo">
+		insert into
+		t_member_info(member_id,gender,birthday,company_id,company_name,job_name,job_year,core_capacity_id,create_at)
+		values(#{memberId},#{gender},#{birthday},#{companyId},#{companyName},#{jobName},#{jobYear},#{coreCapacityId},now())
+	</insert>
+
+	<!-- 修改用户信息 -->
+	<update id="updateMemberInfo" parameterType="cn.ichazuo.model.table.MemberInfo">
+		update t_member_info
+		<set>
+			<if test="gender != null">
+				gender = #{gender},
+			</if>
+			<if test="birthday != null">
+				birthday = #{birthday},
+			</if>
+			<if test="companyId != null">
+				company_id = #{companyId},
+			</if>
+			<if test="companyName != null">
+				company_name = #{companyName},
+			</if>
+			<if test="jobName != null">
+				job_name = #{jobName},
+			</if>
+			<if test="jobYear != null">
+				job_year = #{jobYear},
+			</if>
+			<if test="coreCapacityId != null">
+				core_capacity_id = #{coreCapacityId},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			update_at = now(),version = version + 1
+		</set>
+		where 1=1 and id = #{id} and version = #{version}
+	</update>
+
+	<!-- 根据注册用户ID查询用户信息 -->
+	<select id="findMemberInfoByMemberId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.MemberInfo">
+		select id,member_id as memberId,gender,birthday,company_id
+		as companyId,company_name as companyName,job_name as jobName,
+		job_year
+		as jobYear,core_capacity_id as coreCapacityId,version
+		from t_member_info where member_id = #{memberId} limit 1
+	</select>
+
+	<!-- 保存第三方用户 -->
+	<insert id="saveThirdMember" parameterType="cn.ichazuo.model.table.ThirdMember">
+		insert into
+		t_third_member(member_id,open_id,mark,create_at,unionid)
+		values
+		(#{memberId},#{openId},#{mark},now(),#{unionid})
+	</insert>
+
+	<!-- 修改第三方用户 -->
+	<update id="updateThirdMember" parameterType="cn.ichazuo.model.table.ThirdMember">
+		update t_third_member
+		<set>
+			<if test="memberId != null">
+				member_id = #{memberId},
+			</if>
+			<if test="openId != null">
+				open_id = #{openId},
+			</if>
+			<if test="mark != null">
+				mark = #{mark},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			<if test="unionid != null">
+				unionid = #{unionid},
+			</if>
+			update_at = now(), version = version + 1
+		</set>
+		where id = #{id} and version = #{version}
+	</update>
+
+	<!-- 根据mark和openId查询第三方用户 -->
+	<select id="findThirdMemberByParams" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.ThirdMember">
+		select id,member_id as memberId,open_id as
+		openId,mark,status,version,unionid
+		from t_third_member where status = 1 and mark = #{mark} and open_id =
+		#{openId} limit 1
+	</select>
+
+	<!-- 查询用户点赞数量 -->
+	<select id="findMemberFavourCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*)
+		from t_member m left join t_member_info i on i.member_id = m.id
+		inner join t_member_favour f on
+		<if test="fromMemberId != null">
+			f.to_member_id = m.id
+			where f.from_member_id = #{fromMemberId}
+		</if>
+		<if test="toMemberId != null">
+			f.from_member_id = m.id
+			where f.to_member_id = #{toMemberId}
+		</if>
+		and m.status = 1 and f.status = 1
+	</select>
+
+	<!-- 查询用户点赞 -->
+	<select id="findMemberFavour" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.MemberFavour">
+		select id,from_member_id as fromMemberId,to_member_id as
+		toMemberId,status,version
+		from t_member_favour where from_member_id = #{fromMemberId} and
+		to_member_id = #{toMemberId}
+	</select>
+
+	<!-- 保存用户点赞 -->
+	<insert id="saveMemberFavour" parameterType="cn.ichazuo.model.table.MemberFavour">
+		insert into
+		t_member_favour (from_member_id,to_member_id,create_at)
+		values(#{fromMemberId},#{toMemberId},now())
+	</insert>
+
+	<!-- 修改用户点赞状态 -->
+	<update id="updateMemberFavourStatus" parameterType="cn.ichazuo.model.table.MemberFavour">
+		update
+		t_member_favour set status = #{status},update_at = now(),version =
+		#{version} where id = #{id}
+	</update>
+
+	<!-- 查询点赞用户列表 -->
+	<select id="findFavourMemberList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name as
+		companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_member m left join t_member_info i on i.member_id = m.id
+		inner join t_member_favour f on
+		<if test="fromMemberId != null">
+			f.to_member_id = m.id
+			where f.from_member_id = #{fromMemberId}
+		</if>
+		<if test="toMemberId != null">
+			f.from_member_id = m.id
+			where f.to_member_id = #{toMemberId}
+		</if>
+		and m.status = 1 and f.status = 1
+		order by f.id desc,f.create_at desc
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询用户全部信息 -->
+	<select id="findMemberAllInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.UserAllInfo">
+		select m.id,m.avatar,m.nick_name as
+		nickname,m.status,i.gender,i.birthday,i.company_name as
+		companyName,i.job_name as jobName,i.job_year as jobYear,
+		ifnull(t.`value`,'') as coreCapacityName
+		from t_member m left join t_member_info i on m.id = i.member_id
+		left join s_dict_item t on t.id = i.core_capacity_id
+		where m.id = #{memberId}
+	</select>
+
+	<!-- 根据用户ID查询用户简单信息 -->
+	<select id="findSimpleMemberInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name
+		as companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_member m left join t_member_info i on i.member_id = m.id
+		where m.id = #{id} and m.status = 1
+	</select>
+
+	<!-- 根据课程ID查询线上课程听课列表 -->
+	<select id="findOnlineCourseMemberList" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name
+		as companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_course_online_join j inner join t_member m on j.member_id = m.id
+		left join t_member_info i on i.member_id = m.id
+		where j.course_id = #{courseId} and j.status = 1 limit 10
+	</select>
+
+	<!-- 查询我的老师ID -->
+	<select id="findMyTeachers" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select f.teacher_id from t_course_offline_join j left join
+		t_course_offline f on j.course_id = f.course_id left join t_course c
+		on c.id = f.course_id
+		where j.member_id = #{memberId} and j.`status` = 1 and f.status = 1 and
+		c.is_hidden = 0
+	</select>
+
+	<!-- 绑定手机号 -->
+	<update id="updateMemberMobile" parameterType="java.util.Map">
+		update t_member
+		set mobile =
+		#{mobile},password=#{password},update_at=now(),version=version+1 where
+		id=#{memberId}
+	</update>
+
+	<!-- 修改第三方用户UnionId -->
+	<update id="updateThirdUnionId" parameterType="java.util.Map">
+		update
+		t_third_member set unionid = #{unionid},update_at = now(), version =
+		version + 1
+		where id = #{id}
+	</update>
+
+	<!-- 根据用户ID查询微信用户信息 -->
+	<select id="findThirdMemberByMemberId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.ThirdMember">
+		select id,member_id as memberId,open_id as
+		openId,mark,unionid from t_third_member where mark = 1 and member_id =
+		#{memberId} and status = 1 limit 1
+	</select>
+
+	<!-- ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓以下为后台管理↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ -->
+	<!-- 查询注册会员 -->
+	<select id="findMemberList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.admin.MemberListInfo">
+		select u.id,u.mobile,u.nick_name as
+		nickName,u.avatar,i.gender,i.birthday,i.company_id as companyId,
+		i.company_name as companyName,i.job_name as jobName,i.job_year as
+		jobYear,i.core_capacity_id as coreCapacityId,
+		d.`value` as
+		coreCapaciyuName,u.create_at as createAt,u.status
+		from t_member u left join t_member_info i on u.id = i.member_id
+		left join s_dict_item d on d.id = i.core_capacity_id
+		where 1=1
+		<if test="mobile != null">
+			and u.mobile like #{mobile}
+		</if>
+		<if test="nickname != null">
+			and u.nick_name like #{nickname}
+		</if>
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询注册会员总数 -->
+	<select id="findMemberListCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from t_member u where 1=1
+		<if test="mobile != null">
+			and u.mobile like #{mobile}
+		</if>
+		<if test="nickname != null">
+			and u.nick_name like #{nickname}
+		</if>
+	</select>
+
+	<!-- 根据ID查询用户 -->
+	<select id="findMember" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Member">
+		select id,mobile,`password`,nick_name as
+		nickName,avatar,access_token as accessToken,client_version as
+		clientVersion,
+		device_id as deviceId,version,status from t_member where
+		id=#{id}
+	</select>
+
+	<!-- 修改会员状态 -->
+	<update id="updateMemberStatus" parameterType="cn.ichazuo.model.table.Member">
+		update t_member
+		set status = #{status},version = version + 1,update_at = now()
+		where id
+		= #{id} and version = #{version}
+	</update>
+
+	<!-- 修改会员其他信息状态 -->
+	<update id="updateMemberInfoStatus" parameterType="cn.ichazuo.model.table.MemberInfo">
+		update
+		t_member_info set status = #{status},version = version + 1,update_at =
+		now()
+		where id = #{id} and version = #{version}
+	</update>
+
+	<!-- 查询全部注册用户 -->
+	<select id="findAllMember" resultType="cn.ichazuo.model.Dictionary">
+		select id,nick_name as
+		value from t_member where `status` = 1
+	</select>
+
+	<!-- ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑以上为后台管理↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ -->
+</mapper>

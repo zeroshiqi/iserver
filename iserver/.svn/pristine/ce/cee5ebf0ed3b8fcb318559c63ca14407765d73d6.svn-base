@@ -1,0 +1,227 @@
+package cn.ichazuo.model.table;
+
+import java.util.Date;
+
+import javax.persistence.Table;
+
+import cn.ichazuo.commons.base.BaseModel;
+
+/**
+ * @ClassName: WebCourseOrder
+ * @Description: (Web订单信息)
+ * @author ZhaoXu
+ * @date 2015年9月1日 下午1:49:57
+ * @version V1.0
+ */
+@Table(name = "t_course_web_order")
+public class WebCourseOrder extends BaseModel {
+	private static final long serialVersionUID = 1L;
+	private Long id; // id
+	private Integer number; // 数量
+	private String orderCode; // 订单号
+	private Double price; // 金额
+	private Long courseId; // 课程ID
+	private Integer status; // 状态
+	private Long version; // 版本
+	private Date createAt; // 创建时间
+	private Date updateAt; // 修改时间
+	private String openid; // openid
+	private String unionid; // unionid
+	private String ip; // ip
+	private Integer type; // 订单类别
+	private String nickname; // 姓名
+	private String weixinSex; // 微信性别
+	private String avatar; // 头像
+	private Integer felicitate; // 祝贺数
+	private Integer from;	//来源
+	private Integer ticketStatus; //是否使用奖学金
+
+	private String formNickName;	//用户填写微信昵称
+	private String joinReason;	//加入原因
+	private String buyIntentions; //购买意向
+	private String job;  //职位
+	public String getBuyIntentions() {
+		return buyIntentions;
+	}
+
+	public void setBuyIntentions(String buyIntentions) {
+		this.buyIntentions = buyIntentions;
+	}
+
+	public String getJob() {
+		return job;
+	}
+
+	public void setJob(String job) {
+		this.job = job;
+	}
+
+	// get set
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Integer getNumber() {
+		return number;
+	}
+
+	public void setNumber(Integer number) {
+		this.number = number;
+	}
+
+	public String getOrderCode() {
+		return orderCode;
+	}
+
+	public void setOrderCode(String orderCode) {
+		this.orderCode = orderCode;
+	}
+
+	public Double getPrice() {
+		return price;
+	}
+
+	public void setPrice(Double price) {
+		this.price = price;
+	}
+
+	public Long getCourseId() {
+		return courseId;
+	}
+
+	public void setCourseId(Long courseId) {
+		this.courseId = courseId;
+	}
+
+	public Integer getStatus() {
+		return status;
+	}
+
+	public void setStatus(Integer status) {
+		this.status = status;
+	}
+
+	public Long getVersion() {
+		return version;
+	}
+
+	public void setVersion(Long version) {
+		this.version = version;
+	}
+
+	public Date getCreateAt() {
+		return createAt;
+	}
+
+	public void setCreateAt(Date createAt) {
+		this.createAt = createAt;
+	}
+
+	public Date getUpdateAt() {
+		return updateAt;
+	}
+
+	public void setUpdateAt(Date updateAt) {
+		this.updateAt = updateAt;
+	}
+
+	public String getOpenid() {
+		return openid;
+	}
+
+	public void setOpenid(String openid) {
+		this.openid = openid;
+	}
+
+	public String getUnionid() {
+		return unionid;
+	}
+
+	public void setUnionid(String unionid) {
+		this.unionid = unionid;
+	}
+
+	public String getIp() {
+		return ip;
+	}
+
+	public void setIp(String ip) {
+		this.ip = ip;
+	}
+
+	public Integer getType() {
+		return type;
+	}
+
+	public void setType(Integer type) {
+		this.type = type;
+	}
+
+	public String getNickname() {
+		return nickname;
+	}
+
+	public void setNickname(String nickname) {
+		this.nickname = nickname;
+	}
+
+	public String getWeixinSex() {
+		return weixinSex;
+	}
+
+	public void setWeixinSex(String weixinSex) {
+		this.weixinSex = weixinSex;
+	}
+
+	public String getAvatar() {
+		return avatar;
+	}
+
+	public void setAvatar(String avatar) {
+		this.avatar = avatar;
+	}
+
+	public Integer getFelicitate() {
+		return felicitate;
+	}
+
+	public void setFelicitate(Integer felicitate) {
+		this.felicitate = felicitate;
+	}
+
+	public Integer getFrom() {
+		return from;
+	}
+
+	public void setFrom(Integer from) {
+		this.from = from;
+	}
+
+	public Integer getTicketStatus() {
+		return ticketStatus;
+	}
+
+	public void setTicketStatus(Integer ticketStatus) {
+		this.ticketStatus = ticketStatus;
+	}
+
+	public String getFormNickName() {
+		return formNickName;
+	}
+
+	public void setFormNickName(String formNickName) {
+		this.formNickName = formNickName;
+	}
+
+	public String getJoinReason() {
+		return joinReason;
+	}
+
+	public void setJoinReason(String joinReason) {
+		this.joinReason = joinReason;
+	}
+}

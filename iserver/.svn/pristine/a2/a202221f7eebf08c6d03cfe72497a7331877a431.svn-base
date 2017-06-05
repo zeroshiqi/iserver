@@ -1,0 +1,319 @@
+package cn.ichazuo.dao;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import cn.ichazuo.model.app.CatalogCourseList;
+import cn.ichazuo.model.app.DictItem;
+import cn.ichazuo.model.app.Images;
+import cn.ichazuo.model.app.KeyWords;
+import cn.ichazuo.model.app.OnlineCourseCommentInfo;
+import cn.ichazuo.model.app.OnlineCourseListInfo;
+import cn.ichazuo.model.app.UserInfo;
+import cn.ichazuo.model.app.WebJobInfo;
+import cn.ichazuo.model.app.WebOfflineCourseInfo;
+import cn.ichazuo.model.app.QuestionListInfo;
+import cn.ichazuo.model.app.Recommend;
+import cn.ichazuo.model.app.StudyDetail;
+import cn.ichazuo.model.app.StudyPlan;
+import cn.ichazuo.model.table.ArticleCommentFavour;
+import cn.ichazuo.model.table.BusinessVersion;
+import cn.ichazuo.model.table.Catalog;
+import cn.ichazuo.model.table.CourseWebInfo;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.Question;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.Version;
+
+/**
+ * @ClassName: CommonDao 
+ * @Description: (通用DAO) 
+ * @author ZhaoXu
+ * @date 2015年7月20日 下午10:40:44 
+ * @version V1.0
+ */
+public interface CommonDao {
+
+	public CourseWebInfo findCourseWebInfo(Long id);
+	
+	public int updateCourseWebInfo(CourseWebInfo info);
+	
+	public List<OnlineCourseCommentInfo> findOnlineCourseCommentLimit50(Long courseId);
+	
+	public int updateTicketStatus(Map<String,Object> map);
+	
+	public UserInfo findUserInfoByUnionId(String unionId);
+	
+	public List<WebJobInfo> getWebJobList(Map<String,Object> params);
+	
+	public WebJobInfo getWebJobInfo(Long id);
+	
+	public String getQRCodeURL(Long id);
+	
+
+	
+	 
+	/**
+	 * @Title: findWebCourseOfflineInfo 
+	 * @Description: (查询线下课程信息) 
+	 * @param courseId
+	 * @return
+	 */
+	public WebOfflineCourseInfo findWebCourseOfflineInfo(Long courseId);
+	
+	/**
+	 * @Title: updateWebCourseClickNumber 
+	 * @Description: (修改网页课程点击数量) 
+	 * @param id
+	 * @return
+	 */
+	public int updateWebCourseClickNumber(Long id);
+	
+	/**
+	 * @Title: findAppVersionMax 
+	 * @Description: (查询最新版本) 
+	 * @param client
+	 * @return
+	 */
+	public Version findAppVersionMax(String client);
+	
+	/**
+	 * @Title: findBusinessAppVersionByMap 
+	 * @Description: (查询当前版本信息) 
+	 * @param params
+	 * @return
+	 */
+	public BusinessVersion findBusinessAppVersionByMap(Map<String,Object> params);
+	
+	/**
+	 * @Title: findAppVersionMax 
+	 * @Description: (查询最新版本) 
+	 * @param client
+	 * @return
+	 */
+	public BusinessVersion findBusinessAppVersionMax(String client);
+	
+	/**
+	 * @Title: findAppVersionByMap 
+	 * @Description: (查询当前版本信息) 
+	 * @param params
+	 * @return
+	 */
+	public Version findAppVersionByMap(Map<String,Object> params);
+	
+	public int updateWebOrderFelicitate(String code);
+	
+	public int findFelicitateCount(String code);
+	
+	public int updateWebOrderFelicitates(Long id);
+	
+	public int updateWebCrowdFelicitates(Long id);
+	
+	/**
+	 * @Title: findAllQuestion 
+	 * @Description: (查询全部问题) 
+	 * @return
+	 */
+	public List<Question> findAllQuestion();
+	public List<Question> findAllQuestionByType(int type);
+	
+	public int saveTicket(Ticket ticket);
+	public int saveScore(Ticket ticket);
+	
+	public Ticket findTicket(Long id);
+	
+	public int updateTicketFavour(Long id);
+	
+	public Long findHaveTicket(String unionId);
+	public Long findIfHaveTicket(Ticket ticket);
+	public int findTicketNo(Ticket ticket);
+	public int findTicketCount(Ticket ticket);
+	public String findUnionIdById(Long id);
+	public int findParentIdById(Long id);
+	public Long findScoreMaxByParentId(int parentId);
+	public Long findScoreMinByParentId(int parentId);
+	
+	@Deprecated
+	public List<Images> findAllImages();
+	
+	public List<Images> findAllImagesV2(int type);
+	
+//	试题相关
+	/**
+	 * @Title: getQuestionList 
+	 * @Description: (查询试题列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<QuestionListInfo> getQuestionList(Map<String,Object> params); 
+	/**
+	 * @Title: getQuestionChildList 
+	 * @Description: (查询子标题列表) 
+	 * @param id
+	 * @return
+	 */
+	public List<QuestionListInfo> getQuestionChildList(Long id);
+	/**
+	 * @Title: getChildQuestionsById 
+	 * @Description: (查询全部问题) 
+	 * @param id
+	 * @return
+	 */
+	public List<Question> getChildQuestionsById(int id);
+	
+	//↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓   企业APP专用   ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+	
+	/**
+	 * @Title: getQuestionList 
+	 * @Description: (查询试题列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<Catalog> findCatalogList(Map<String,Object> params); 
+ 
+	/**
+	 * @Title: getCatalogCourseList 
+	 * @Description: (查询分类下课程列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<CatalogCourseList> getCatalogCourseList(Long id); 
+	/**
+	 * @Title: addStudyNumber 
+	 * @Description: (修改课程评论点赞) 
+	 * @param courseId
+	 * @return
+	 */
+	public int addStudyNumber(Long courseId);
+	
+	/**
+	 * @Title: addStudyDetail 
+	 * @Description: (添加学员学习详细记录) 
+	 * @param courseId
+	 * @return
+	 */
+	public int addStudyDetail(Map<String,Object> params);
+	
+	/**
+	 * @Title: findStudyDetail 
+	 * @Description: (查询学员是否已经完成过学习) 
+	 * @param courseId
+	 * @return
+	 */
+	public List<StudyDetail>  findStudyDetail(Map<String,Object> params);
+	
+	/**
+	 * @Title: updateStudyPlan 
+	 * @Description: (更新学员学习计划) 
+	 * @param courseId
+	 * @param employeeId
+	 * @return
+	 */
+	public int updateStudyPlan(Map<String,Object> params);
+	/**
+	 * @Title: findCatalogCourseList 
+	 * @Description: (根据条件查询满足条件的课程列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<CatalogCourseList> findCatalogCourseList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findDictItemList 
+	 * @Description: (查询数据字典列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<DictItem> findDictItemList(Map<String,Object> params); 
+	
+	/**
+	 * @Title: saveStudyPlan 
+	 * @Description: (添加学员学习计划) 
+	 * @param courseId,employeeId
+	 * @return
+	 */
+	public int saveStudyPlan(Map<String,Object> params);
+	
+	/**
+	 * @Title: queryStudyPlan 
+	 * @Description: (查询学员计划是否已经存在) 
+	 * @param courseId,employeeId
+	 * @return
+	 */
+	public List<StudyPlan> queryStudyPlan(Map<String,Object> params);
+	/**
+	 * @Title: queryStudyPlanList 
+	 * @Description: (查询学员计划学习的课程列表) 
+	 * @param employeeId
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyPlanList(Map<String,Object> params);
+	/**
+	 * @Title: saveRecommend 
+	 * @Description: (添加学员学习计划) 
+	 * @param courseId,employeeId
+	 * @return
+	 */
+	public int saveRecommend(Map<String,Object> params);
+	
+	/**
+	 * @Title: queryRecommend 
+	 * @Description: (添加学员学习计划) 
+	 * @param courseId,employeeId
+	 * @return
+	 */
+	public List<Recommend> queryRecommend(Map<String,Object> params);
+	
+	/**
+	 * @Title: findKeyWordsList 
+	 * @Description: (查询关键字列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<KeyWords> findKeyWordsList(Map<String,Object> params); 
+	
+	/**
+	 * @Title: findCourseListByKeyWords 
+	 * @Description: (根据关键字查询课程列表) 
+	 * @param employeeId
+	 * @return
+	 */
+	public List<CatalogCourseList> findCourseListByKeyWords(Map<String,Object> params);
+	/**
+	 * @Title: findTeachersList 
+	 * @Description: (查询讲师列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<CatalogCourseList> findTeachersList(Map<String,Object> params); 
+	/**
+	 * @Title: findCourseListByTeacher 
+	 * @Description: (根据讲师查询课程列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<CatalogCourseList> findCourseListByTeacher(Map<String,Object> params);
+	/**
+	 * @Title: findEmployeeDetail 
+	 * @Description: (根据ID查询企业学员信息) 
+	 * @param employeeId
+	 * @return
+	 */
+	public Employee findEmployeeDetail(Map<String,Object> params);
+	
+	/**
+	 * @Title: findEmployeePlanCount 
+	 * @Description: (添加学员学习计划) 
+	 * @param employeeId
+	 * @return
+	 */
+	public int findEmployeePlanCount(Map<String,Object> params);
+	/**
+	 * @Title: findEmployeeStudyTimeCount 
+	 * @Description: (添加学员学习计划) 
+	 * @param employeeId
+	 * @return
+	 */
+	public int findEmployeeStudyTimeCount(Map<String,Object> params);
+}

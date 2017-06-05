@@ -1,0 +1,492 @@
+package cn.ichazuo.controller.app;
+
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.alipay.util.AlipayNotify;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.model.admin.OfflineMsgInfo;
+import cn.ichazuo.model.app.CatalogCourseList;
+import cn.ichazuo.model.app.CourseWebCrowdfundingInfo;
+import cn.ichazuo.model.app.DictItem;
+import cn.ichazuo.model.app.KeyWords;
+import cn.ichazuo.model.app.OfflineCourseListInfo;
+import cn.ichazuo.model.app.Recommend;
+import cn.ichazuo.model.app.StudyPlan;
+import cn.ichazuo.model.app.WebCourseOrderInfo;
+import cn.ichazuo.model.table.ArticleCommentFavour;
+import cn.ichazuo.model.table.Catalog;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.CourseOfflineJoin;
+import cn.ichazuo.model.table.CourseOrder;
+import cn.ichazuo.model.table.CourseWebCrowdfunding;
+import cn.ichazuo.model.table.CourseWebCrowdfundingLog;
+import cn.ichazuo.model.table.CourseWebCrowdfundingOrder;
+import cn.ichazuo.model.table.CourseWebCrowdfundingUser;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.WebCourseOrder;
+import cn.ichazuo.model.table.WebCourseOrderUser;
+import cn.ichazuo.service.BusinessService;
+import cn.ichazuo.service.CommonService;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.CrowdfundingService;
+import cn.ichazuo.service.MemberService;
+import cn.ichazuo.service.OrderService;
+
+/**
+ * @ClassName: OrderController
+ * @Description: (订单Controller)
+ * @author ZhaoXu
+ * @date 2015年7月19日 上午2:28:03
+ * @version V1.0
+ */
+@RequestMapping("/app")
+@Controller("app.businessController")
+public class BusinessController extends BaseController {
+
+	@Autowired
+	private BusinessService businessService;
+	
+	@Autowired
+	private CommonService commonService;
+	@Autowired
+	private CrowdfundingService crowdfundingService;
+	protected Logger logger = LoggerFactory.getLogger(getClass());
+
+	/**
+	 * @Title: getCatalogList
+	 * @Description: (获得课程分类列表)
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getCatalogList")
+	public JSONObject getCatalogList(Page page,String client,String version) {
+		try {
+			List<Catalog> catalogList = null;
+			catalogList=businessService.findCatalogList(page);
+			return ok("查询成功", catalogList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: getCatalogCourseList
+	 * @Description: (获得课程分类下课程列表)
+	 * @param catalogId
+	 *            分类ID
+	 * @param employeeId
+	 *            用户ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/getCatalogCourseList")
+	public JSONObject getCatalogCourseList(Long catalogId,Long employeeId,String client,String version) {
+		try {
+			List<CatalogCourseList> catalogCourseList = null;
+			catalogCourseList=businessService.getCatalogCourseList(catalogId);
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<catalogCourseList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				catalogCourseList.get(i).setAvatar(commonService.appenUrl(catalogCourseList.get(i).getAvatar()));
+			}
+			return ok("查询成功", catalogCourseList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: addStudyDetail 
+	 * @Description: (记录学员学习记录) 
+	 * @param courseId 课程ID
+	 * @param employeeId 学员ID
+	 * @param addNum 课程学习完成标识，1：完成；0未完成
+	 * @param studyTime 课程学习时长，单位秒
+	 * @param courseTime 课程时长，只有学习完成时才传，大小为录音课件的时间长度，单位秒
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/addStudyDetail")
+	public JSONObject addStudyDetail(Long courseId,Long employeeId,Long addNum,Long studyTime,Long courseTime,String client,String version){
+		try{
+			if(NumberUtils.isNullOrZero(courseId) || NumberUtils.isNullOrZero(employeeId) || NumberUtils.isNullOrZero(studyTime) ){
+				return error("参数缺失");
+			}
+			String status = "";
+			if(addNum==1){
+				if(businessService.findStudyDetail(courseId,employeeId).size()<0){
+					status = "2";
+					businessService.addStudyDetail(courseId,employeeId,courseTime,addNum,status);
+				}
+				businessService.addStudyNumber(courseId);
+				List<StudyPlan> planList = null;
+				planList = businessService.queryStudyPlan(courseId,employeeId);
+				//判断完成的课程是否在计划学习列表中，如果在则从计划列表中删除
+				if(planList.size()>0){
+					businessService.updateStudyPlan(courseId,employeeId);
+				}
+			}
+			if(studyTime>0){
+				status = "1";
+				businessService.addStudyDetail(courseId,employeeId,studyTime,addNum,status);
+				return ok("保存成功");
+			}
+			
+			return error("保存失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCatalogCourseListHot
+	 * @Description: (根据播放时间等查询条件查询课程分类下热门课程列表)
+	 * @param keyWordsId 关键字ID
+	 * @param level 级别         
+	 * @param employeeId  企业用户ID
+	 * @param timeLength 时长
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCatalogCourseListHot")
+	public JSONObject findCatalogCourseListHot(int keyWordsId,Long employeeId,int timeLength,int level,Page page,String client,String version) {
+		try {
+			if(NumberUtils.isNullOrZero(timeLength) && NumberUtils.isNullOrZero(keyWordsId) && NumberUtils.isNullOrZero(level)){
+				return error("参数缺失");
+			}
+			List<CatalogCourseList> catalogCourseList = null;
+			catalogCourseList=businessService.findCatalogCourseList(keyWordsId,timeLength,level,page);
+			//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+			for(int i=0;i<catalogCourseList.size();i++){
+				//是否推荐
+				if(businessService.queryRecommend(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifRecommend = (long) 1;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}else{
+					Long ifRecommend = (long) 0;
+					catalogCourseList.get(i).setIfRecommend(ifRecommend);
+				}
+				//是否在学习计划
+				if(businessService.queryStudyPlan(catalogCourseList.get(i).getId(),employeeId).size()>0){
+					Long ifStudyPlan = (long) 1;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}else{
+					Long ifStudyPlan = (long) 0;
+					catalogCourseList.get(i).setIfStudyPlan(ifStudyPlan);
+				}
+				catalogCourseList.get(i).setAvatar(commonService.appenUrl(catalogCourseList.get(i).getAvatar()));
+			}
+			return ok("查询成功", catalogCourseList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findDictItemList
+	 * @Description: (查询全部数据字典项用于热门中用分类查询)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findDictItemList")
+	public JSONObject findDictItemList(Page page,String client,String version) {
+		try {
+			List<DictItem> dictList = null;
+			dictList=businessService.findDictItemList(page);
+			return ok("查询成功", dictList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: saveStudyPlan
+	 * @Description: (保存学习计划)
+	 * @param employeeId 学员ID
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveStudyPlan")
+	public JSONObject saveStudyPlan(Long employeeId,Long courseId,String client,String version) {
+		try {
+			List<StudyPlan> planList = null;
+			planList = businessService.queryStudyPlan(courseId,employeeId);
+			if(planList.size()>0){
+				return error("计划已存在");
+			}else{
+				businessService.saveStudyPlan(courseId,employeeId);
+				return ok("保存成功");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findStudyPlanList
+	 * @Description: (查询学员学习计划列表)
+	 * @param employeeId 学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findStudyPlanList")
+	public JSONObject findStudyPlanList(int employeeId,String client,String version) {
+		try {
+			List<CatalogCourseList> planList = null;
+			planList = businessService.queryStudyPlanList(employeeId);
+			return ok("查询成功",planList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: saveRecommend
+	 * @Description: (保存课程推荐)
+	 * @param employeeId 学员ID
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveRecommend")
+	public JSONObject saveRecommend(Long employeeId,Long courseId,String client,String version) {
+		try {
+			List<Recommend> recommendList = null;
+			recommendList = businessService.queryRecommend(courseId,employeeId);
+			if(recommendList.size()>0){
+				return error("已推荐过此课程");
+			}else{
+				businessService.saveRecommend(courseId,employeeId);
+				return ok("推荐成功");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findKeyWordsList
+	 * @Description: (查询所有搜索关键字)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findKeyWordsList")
+	public JSONObject findKeyWordsList(Page page,String client,String version) {
+		try {
+			try {
+				List<KeyWords> keyWordsList = null;
+				keyWordsList=businessService.findKeyWordsList(page);
+				return ok("查询成功", keyWordsList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCourseListByKeyWords
+	 * @Description: (根据关键字查询课程)
+	 * @param keyWords 关键字
+	 * @param employeeId 企业学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseListByKeyWords")
+	public JSONObject findCourseListByKeyWords(String keyWords,Long employeeId,Page page,String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> courseList = null;
+				courseList=businessService.findCourseListByKeyWords(keyWords,page);
+				//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+				for(int i=0;i<courseList.size();i++){
+					//是否推荐
+					if(businessService.queryRecommend(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifRecommend = (long) 1;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}else{
+						Long ifRecommend = (long) 0;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}
+					//是否在学习计划
+					if(businessService.queryStudyPlan(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifStudyPlan = (long) 1;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}else{
+						Long ifStudyPlan = (long) 0;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}
+					courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+				}
+				return ok("查询成功", courseList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findTeachersList
+	 * @Description: (查询所有讲师)
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findTeachersList")
+	public JSONObject findTeachersList(Page page,String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> teachersList = null;
+				teachersList=businessService.findTeachersList(page);
+				return ok("查询成功", teachersList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findCourseListByTeacher
+	 * @Description: (根据讲师姓名查询课程)
+	 * @param teacher 讲师姓名
+	 * @param employeeId 企业学员ID
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseListByTeacher")
+	public JSONObject findCourseListByTeacher(String teacher,Long employeeId,Page page,String client,String version) {
+		try {
+			try {
+				List<CatalogCourseList> courseList = null;
+				courseList=businessService.findCourseListByTeacher(teacher,page);
+				//循环遍历集合查询是否是学员的推荐课程和计划学习课程
+				for(int i=0;i<courseList.size();i++){
+					//是否推荐
+					if(businessService.queryRecommend(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifRecommend = (long) 1;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}else{
+						Long ifRecommend = (long) 0;
+						courseList.get(i).setIfRecommend(ifRecommend);
+					}
+					//是否在学习计划
+					if(businessService.queryStudyPlan(courseList.get(i).getId(),employeeId).size()>0){
+						Long ifStudyPlan = (long) 1;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}else{
+						Long ifStudyPlan = (long) 0;
+						courseList.get(i).setIfStudyPlan(ifStudyPlan);
+					}
+					courseList.get(i).setAvatar(commonService.appenUrl(courseList.get(i).getAvatar()));
+				}
+				return ok("查询成功", courseList);
+			} catch (Exception e) {
+				e.printStackTrace();
+				return error(APP_SYSTEM_ERROR);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findEmployeeDetail 
+	 * @Description: (查询学员详细信息)
+	 * @param employeeId 企业学员ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findEmployeeDetail")
+	public JSONObject findEmployeeDetail(Long employeeId,String client,String version){
+		try{
+			if(NumberUtils.isNullOrZero(employeeId)){
+				return error("参数缺失");
+			}
+			Employee employee1 = businessService.findEmployeeDetail(employeeId);
+			Employee employee = new Employee();
+			employee.setStudyPlanCount(businessService.findEmployeePlanCount(employeeId));
+			employee.setStudyTimeCount(businessService.findEmployeeStudyTimeCount(employeeId));
+			employee.setId(employee1.getId());
+			employee.setAvatar(commonService.appenUrl(employee1.getAvatar()));
+			employee.setMobile(employee1.getMobile());
+			employee.setName(employee1.getName());
+			employee.setSex(employee1.getSex());
+			employee.setBusinessId(employee1.getBusinessId());
+			employee.setBusinessName(employee1.getBusinessName());
+			return ok("ok",employee);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+}

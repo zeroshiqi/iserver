@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.RoleDao">
+	<!-- 查询角色列表 -->
+	<select id="findRoleList" resultType="cn.ichazuo.model.admin.RoleListInfo"
+		parameterType="java.util.Map">
+		select id,code,role_name as roleName,remark
+		from s_role where 1=1 and status = 1
+		<if test="roleName != null">
+			and role_name like #{roleName}
+		</if>
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询角色总数 -->
+	<select id="findRoleListCount" resultType="java.lang.Integer"
+		parameterType="java.util.Map">
+		select count(*) from s_role where 1=1 and status = 1
+		<if test="roleName != null">
+			and role_name like #{roleName}
+		</if>
+	</select>
+
+	<!-- 保存角色 -->
+	<insert id="saveRole" parameterType="cn.ichazuo.model.table.Role">
+		insert into
+		s_role(code,remark,role_name,create_at)
+		values(#{code},#{remark},#{roleName},now())
+	</insert>
+
+	<!-- 根据id查询角色 -->
+	<select id="findRoleById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Role">
+		select id,code,remark,role_name as
+		roleName,`status`,version from s_role where id = #{id}
+	</select>
+
+	<!-- 根据条件查询数量 -->
+	<select id="findRoleCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from s_role where 1=1 and status = 1
+		<if test="code != null">
+			and code = #{code}
+		</if>
+		<if test="roleName != null">
+			and role_name = #{roleName}
+		</if>
+		<if test="id != null">
+			and id != #{id}
+		</if>
+	</select>
+
+	<!-- 修改角色 -->
+	<update id="updateRole" parameterType="cn.ichazuo.model.table.Role">
+		update s_role
+		<set>
+			<if test="code != null">
+				code = #{code},
+			</if>
+			<if test="roleName != null">
+				role_name = #{roleName},
+			</if>
+			<if test="remark != null">
+				remark = #{remark},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			version = version + 1,update_at = now()
+		</set>
+		where 1=1 and id = #{id} and version = #{version}
+	</update>
+
+	<!-- 查询使用此角色的用户数量 -->
+	<select id="findUseRoleCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from s_user where role_id = #{roleId} and
+		`status` = 1
+	</select>
+
+	<!-- 查询全部角色 -->
+	<select id="findAllRole" resultType="cn.ichazuo.model.table.Role">
+		select id,code,role_name as
+		roleName,remark
+		from s_role where 1=1 and status = 1
+	</select>
+</mapper>

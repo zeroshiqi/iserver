@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.DictDao">
+
+	<!-- 根据id查询字典 -->
+	<select id="findDictById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Dict">
+		select id,code,dict_name as dictName,status,version from
+		s_dict where id = #{id}
+	</select>
+
+	<!-- 根据ID查询字典项 -->
+	<select id="findDictItemById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.DictItem">
+		select id,value,dict_id as dictId,weight,remark,version
+		from s_dict_item where id = #{id}
+	</select>
+
+	<!-- 根据Code查询字典项 -->
+	<select id="findDictionaryListByCode" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.Dictionary">
+		select i.id,i.value from s_dict_item i left join s_dict d
+		on d.id = i.dict_id
+		where d.code = #{code} and i.status = 1
+	</select>
+
+	<!-- 保存数据字典 -->
+	<insert id="saveDict" parameterType="cn.ichazuo.model.table.Dict"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		s_dict(code,dict_name,remark,create_at)
+		values(#{code},#{dictName},#{remark},now())
+	</insert>
+
+	<!-- 修改字典 -->
+	<update id="updateDictStatus" parameterType="cn.ichazuo.model.table.Dict">
+		update s_dict set
+		version = #{version},status = 0,update_at = now(),version = version +
+		1,code='' where id=#{id} and version = #{version}
+	</update>
+
+	<!-- 保存数据字典项 -->
+	<insert id="saveDictItem" parameterType="cn.ichazuo.model.table.DictItem"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		s_dict_item(value,dict_id,weight,remark,create_at)
+		values
+		(#{value},#{dictId},#{weight},#{remark},now())
+	</insert>
+
+	<!-- 修改数据字典项 -->
+	<update id="updateDictItemStatus" parameterType="cn.ichazuo.model.table.DictItem">
+		update
+		s_dict_item set version = version + 1,update_at = now(),status = 0
+		where id=#{id} and version = #{version}
+	</update>
+
+	<!-- 查询字典列表 -->
+	<select id="findDictList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.admin.DictListInfo">
+		select id,code,dict_name as name,create_at as createAt,remark from
+		s_dict where 1=1 and status = 1
+		<if test="name != null">
+			and dict_name like #{name}
+		</if>
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询字典总数 -->
+	<select id="findDictListCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from s_dict where 1=1 and status = 1
+		<if test="name != null">
+			and dict_name like #{name}
+		</if>
+	</select>
+
+	<!-- 查询字典标识数量 -->
+	<select id="findDictCodeCount" parameterType="java.lang.String"
+		resultType="java.lang.Integer">
+		select count(*) from s_dict where 1=1 and status = 1 and
+		code = #{code}
+	</select>
+
+	<!-- 查询数据字典项 -->
+	<select id="findDictItemList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.admin.DictItemListInfo">
+		select s.id,s.`value`,d.dict_name as
+		name,s.remark,s.create_at as createAt,s.weight
+		from s_dict_item s left join s_dict d on s.dict_id = d.id
+		where 1=1 and s.status = 1 and s.dict_id = #{dictId}
+		order by s.weight
+		limit
+		#{page},#{pageCount}
+	</select>
+
+	<!-- 查询数据字典项总数 -->
+	<select id="findDictItemListCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from s_dict_item s
+		where 1=1 and s.status =
+		1 and s.dict_id = #{dictId}
+	</select>
+
+	<!-- 批量修改字典项状态 -->
+	<update id="updateStatusByDictId" parameterType="java.lang.Long">
+		update
+		s_dict_item set status = 0,version = version + 1,update_at = now()
+		where 1=1 and dict_id = #{id}
+	</update>
+</mapper>

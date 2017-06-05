@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.PlayAddressDao">
+	
+	<!-- 查询全部播放地址 -->
+	<select id="findAllPlayAddress" resultType="cn.ichazuo.model.Dictionary">
+		select id,address_name as value from t_play_address where status = 1
+	</select>
+	
+	<!-- 查询播放地址列表 -->
+	<select id="findPlayAddressList" resultType="cn.ichazuo.model.admin.PlayAddressListInfo" parameterType="java.util.Map">
+		select id,address_name as addressName,address_url as addressUrl from t_play_address 
+		where status = 1
+		limit #{page},#{pageCount}
+	</select>
+	
+	<!-- 根据ID查询播放地址 -->
+	<select id="findPlayAddressById" parameterType="java.lang.Long" resultType="cn.ichazuo.model.table.PlayAddress">
+		select id,address_name as addressName,address_url as addressUrl,version from t_play_address 
+		where status = 1 and id = #{id}
+	</select>
+	
+	<!-- 查询播放地址总数 -->
+	<select id="findPlayAddressListCount" resultType="java.lang.Integer" parameterType="java.util.Map">
+		select count(*) from t_play_address where status = 1 
+	</select>
+	
+	<!-- 保存播放地址 -->
+	<insert id="savePlayAddress" parameterType="cn.ichazuo.model.table.PlayAddress">
+		insert into t_play_address(address_name,address_url,create_at)
+		values (#{addressName},#{addressUrl},now())
+	</insert>
+	
+	<!-- 修改播放地址 -->
+	<update id="updatePlayAddress" parameterType="cn.ichazuo.model.table.PlayAddress">
+		update t_play_address 
+		<set>
+			<if test="addressName != null">
+				address_name = #{addressName},
+			</if>
+			<if test="addressUrl != null">
+				address_url = #{addressUrl},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			update_at = now(),version = version + 1
+		</set>
+		where id = #{id} and version = #{version}
+	</update>
+</mapper>

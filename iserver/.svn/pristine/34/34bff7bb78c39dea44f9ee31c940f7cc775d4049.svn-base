@@ -1,0 +1,352 @@
+package cn.ichazuo.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import cn.ichazuo.model.Dictionary;
+import cn.ichazuo.model.admin.MemberListInfo;
+import cn.ichazuo.model.app.UserAllInfo;
+import cn.ichazuo.model.app.UserSimpleInfo;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.LoginDetail;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.MemberFavour;
+import cn.ichazuo.model.table.MemberInfo;
+import cn.ichazuo.model.table.ThirdMember;
+
+/**
+ * @ClassName: MemberDao 
+ * @Description: (注册用户DAO) 
+ * @author ZhaoXu
+ * @date 2015年7月20日 下午9:52:49 
+ * @version V1.0
+ */
+public interface MemberDao {
+	
+	/**
+	 * @Title: findMemberByUnionId 
+	 * @Description: (根据联合ID查询用户信息) 
+	 * @param unionId
+	 * @return
+	 */
+	public Member findMemberByUnionId(String unionId);
+	/**
+	 * @Title: findLoginMemberByMobile 
+	 * @Description: (根据手机号查询登录用户) 
+	 * @param mobile
+	 * @return
+	 */
+	public Member findLoginMemberByMobile(String mobile);
+	
+	/**
+	 * @Title: findMemberById 
+	 * @Description: (根据ID查询注册用户) 
+	 * @param id 主键
+	 * @return
+	 */
+	public Member findMemberById(Long id);
+	
+	/**
+	 * @Title: findMemberByMobile 
+	 * @Description: (根据手机号查询注册用户) 
+	 * @param mobile 手机号
+	 * @return
+	 */
+//	public Member findMemberByMobile(String mobile);
+	
+	/**
+	 * @Title: saveMember 
+	 * @Description: (保存用户) 
+	 * @param member 用户
+	 * @return
+	 */
+	public int saveMember(Member member);
+	
+	/**
+	 * @Title: updateMember 
+	 * @Description: (更新用户) 
+	 * @param member 用户
+	 * @return
+	 */
+	public int updateMember(Member member);
+	
+	/**
+	 * @Title: saveMemberInfo 
+	 * @Description: (保存用户信息) 
+	 * @param memberInfo 用户信息
+	 * @return
+	 */
+	public int saveMemberInfo(MemberInfo memberInfo);
+	
+	/**
+	 * @Title: updateMemberMobile 
+	 * @Description: (绑定手机号) 
+	 * @param params
+	 * @return
+	 */
+	public int updateMemberMobile(Map<String,Object> params);
+	
+	/**
+	 * @Title: updateMemberInfo 
+	 * @Description: (修改用户信息) 
+	 * @param memberInfo
+	 * @return
+	 */
+	public int updateMemberInfo(MemberInfo memberInfo);
+	
+	/**
+	 * @Title: findMemberInfoByMemberId 
+	 * @Description: (根据用户ID查询用户信息) 
+	 * @param memberId
+	 * @return
+	 */
+	public MemberInfo findMemberInfoByMemberId(Long memberId);
+	
+	/**
+	 * @Title: saveThirdMember 
+	 * @Description: (保存第三方用户) 
+	 * @param member 第三方用户
+	 * @return
+	 */
+	public int saveThirdMember(ThirdMember member);
+	
+	/**
+	 * @Title: updateThirdMember 
+	 * @Description: (修改第三方用户信息) 
+	 * @param member 第三方用户
+	 * @return
+	 */
+	public int updateThirdMember(ThirdMember member);
+	
+	/**
+	 * @Title: findThirdMemberByParams 
+	 * @Description: (根据mark和openId查询第三方用户) 
+	 * @param params 参数
+	 * @return
+	 */
+	public ThirdMember findThirdMemberByParams(Map<String,Object> params);
+	
+	/**
+	 * @Title: findMemberFavourCount 
+	 * @Description: (查询用户点赞数量) 
+	 * @param params 参数
+	 * @return
+	 */
+	public int findMemberFavourCount(Map<String,Object> params);
+	
+	/**
+	 * @Title: findMemberFavour 
+	 * @Description: (查询用户点赞) 
+	 * @param params 参数
+	 * @return
+	 */
+	public MemberFavour findMemberFavour(Map<String,Object> params);
+	
+	/**
+	 * @Title: saveMemberFavour 
+	 * @Description: (保存用户点赞) 
+	 * @param favour 点赞信息
+	 * @return
+	 */
+	public int saveMemberFavour(MemberFavour favour);
+	
+	/**
+	 * @Title: updateMemberFavourStatus 
+	 * @Description: (修改点赞信息状态) 
+	 * @param favour 点赞信息
+	 * @return
+	 */
+	public int updateMemberFavourStatus(MemberFavour favour);
+	
+	/**
+	 * @Title: findFavourMemberList 
+	 * @Description: (查询点赞用户列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<UserSimpleInfo> findFavourMemberList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findMemberAllInfo 
+	 * @Description: (根据用户ID查询用户全部信息) 
+	 * @param memberId
+	 * @return
+	 */
+	public UserAllInfo findMemberAllInfo(Long memberId);
+	
+	/**
+	 * @Title: findSimpleMemberInfo 
+	 * @Description: (根据用户ID查询简易用户信息) 
+	 * @param memberId
+	 * @return
+	 */
+	public UserSimpleInfo findSimpleMemberInfo(Long memberId);
+	
+	/**
+	 * @Title: findOnlineCourseMemberList 
+	 * @Description: (根据课程ID查询听课用户列表) 
+	 * @param courseId 
+	 * @return
+	 */
+	public List<UserSimpleInfo> findOnlineCourseMemberList(Long courseId);
+	
+	/**
+	 * @Title: findMyTeachers 
+	 * @Description: (查询我的老师Id) 
+	 * @param id
+	 * @return
+	 */
+	public List<String> findMyTeachers(Long id);
+	
+	/**
+	 * @Title: findOpenIdByMemberId 
+	 * @Description: (根据ID查询openID) 
+	 * @param memberId
+	 * @return
+	 */
+	public String findOpenIdByMemberId(Long memberId);
+	
+	/**
+	 * @Title: updateThirdUnionId 
+	 * @Description: (修改第三方用户unionid) 
+	 * @param map
+	 * @return
+	 */
+	public int updateThirdUnionId(Map<String,Object> map);
+	
+	/**
+	 * @Title: findThirdMemberByMemberId 
+	 * @Description: (根据用户ID查询第三方用户) 
+	 * @param id
+	 * @return
+	 */
+	public ThirdMember findThirdMemberByMemberId(Long id);
+	
+	//---------------------------------------------------------------------------------------------
+	//以下为后台使用
+	/**
+	 * @Title: selectMemberListCount 
+	 * @Description: (查询注册会员数量) 
+	 * @param map
+	 * @return
+	 */
+	public int findMemberListCount(Map<String,Object> map);
+	
+	/**
+	 * @Title: selectMemberList 
+	 * @Description: (查询注册会员列表) 
+	 * @param map
+	 * @return
+	 */
+	public List<MemberListInfo> findMemberList(Map<String,Object> map);
+	
+	/**
+	 * @Title: updateMemberStatus 
+	 * @Description: (修改用户状态) 
+	 * @param user
+	 * @return
+	 */
+	public int updateMemberStatus(Member member);
+	
+	/**
+	 * @Title: updateMemberInfoStatus 
+	 * @Description: (修改用户信息状态) 
+	 * @param info
+	 * @return
+	 */
+	public int updateMemberInfoStatus(MemberInfo info);
+	
+	/**
+	 * @Title: findMember 
+	 * @Description: (查询用户) 
+	 * @return
+	 */
+	public Member findMember(Long memberId);
+	
+	/**
+	 * @Title: findAllMember 
+	 * @Description: (获得全部注册用户) 
+	 * @return
+	 */
+	public List<Dictionary> findAllMember();
+	
+
+	
+	//---------------------------------------------------------------------------------------------
+	/**
+	 * @Title: findBusinessLoginMemberByMobile 
+	 * @Description: (根据手机号查询登录用户) 
+	 * @param mobile
+	 * @return
+	 */
+	public Employee findBusinessLoginMemberByMobile(String mobile);
+	
+	/**
+	 * @Title: findBusinessLoginMemberByMobile 
+	 * @Description: (根据客户Id查询上次用户登录信息) 
+	 * @param employeeId 用户Id
+	 * @return
+	 */
+	public LoginDetail findBusinessLoginDetailById(Long employeeId);
+	
+	/**
+	 * @Title: findBusinessLoginDetail 
+	 * @Description: (根据设备Id查询上次用户登录信息) 
+	 * @param employeeId 用户Id
+	 * @return
+	 */
+	public LoginDetail findBusinessLoginDetail(Map<String,Object> params);
+	/**
+	 * @Title: saveBusinessLoginDetail 
+	 * @Description: (保存企业用户登录信息) 
+	 * @param detail 登录信息
+	 * @return
+	 */
+	public int saveBusinessLoginDetail(LoginDetail detail);
+	
+	/**
+	 * @Title: saveEmployeeInfo 
+	 * @Description: (保存企业用户信息) 
+	 * @param employee 企业用户
+	 * @return
+	 */
+	public int saveEmployeeInfo(Employee employee);
+	
+	/**
+	 * @Title: BusinessUserById 
+	 * @Description: (根据Id查询登录用户) 
+	 * @param Id
+	 * @return
+	 */
+	public Employee BusinessUserById(Long id);
+	
+	/**
+	 * @Title: updateBusinessUserPassword 
+	 * @Description: (修改企业用户密码) 
+	 * @param employee 企业用户
+	 * @return
+	 */
+	public int updateBusinessUserPassword(Employee employee);
+	
+	/**
+	 * @Title: updateBusinessUserName 
+	 * @Description: (修改企业用户昵称) 
+	 * @param employee 企业用户
+	 * @return
+	 */
+	public int updateBusinessUserName(Employee employee);
+	/**
+	 * @Title: saveEmployee 
+	 * @Description: (保存用户) 
+	 * @param employee 企业版App用户
+	 * @return
+	 */
+	public int saveEmployee(Employee employee);
+	/**
+	 * @Title: saveEmployeeNiMing 
+	 * @Description: (保存匿名用户) 
+	 * @param employee 企业版App用户
+	 * @return
+	 */
+	public int saveEmployeeNiMing(Employee employee);
+}

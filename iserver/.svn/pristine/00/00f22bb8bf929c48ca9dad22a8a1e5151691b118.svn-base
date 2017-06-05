@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.CommonDao">
+	<!-- 查询线下课程信息 -->
+	<select id="findWebCourseOfflineInfo" resultType="cn.ichazuo.model.app.WebOfflineCourseInfo"
+		parameterType="java.lang.Long">
+		select o.is_crowd as isCrowd,t.course_name as
+		title,o.course_content as content,t.create_at as
+		createAt,t.web_click_number as clickNumber,o.price,o.student_num as
+		total
+		from t_course t left join t_course_offline o on o.course_id = t.id where
+		t.status = 1 and t.id = #{courseId}
+	</select>
+
+	<!-- 查询课程web信息 -->
+	<select id="findCourseWebInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.CourseWebInfo">
+		select id,url,ifnull(number,0) as number,course_id as
+		courseId from t_course_web_info where course_id = #{courseId} limit 1
+	</select>
+	<select id="findUserInfoByUnionId" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.app.UserInfo">
+		select u.name,u.mobile,u.weixin,u.sex,u.`work` as
+		company,ifnull(o.form_nick_name,"") as weixinNickName from
+		t_course_web_order_user u
+		left join t_course_web_order o on o.id = u.order_id
+		where u.`status` = 1 and o.status = 1 and o.unionid = #{unionId} order by
+		o.id desc limit 1
+	</select>
+
+	<!-- 更新点击时间 -->
+	<update id="updateCourseWebInfo" parameterType="cn.ichazuo.model.table.CourseWebInfo">
+		update
+		t_course_web_info set number = #{number} where id = #{id}
+	</update>
+
+	<!-- 查询全部问题 -->
+	<select id="findAllQuestion" resultType="cn.ichazuo.model.table.Question">
+		select
+		id,a,b,c,d,title,answer,type,user_name as userName from t_question
+		where status = 1
+	</select>
+
+	<select id="findAllImages" resultType="cn.ichazuo.model.app.Images">
+		select url,image_url as
+		imageUrl,title from t_image where status = 1
+	</select>
+
+	<select id="findAllImagesV2" resultType="cn.ichazuo.model.app.Images"
+		parameterType="java.lang.Integer">
+		select url,image_url as imageUrl,title from t_image
+		where status = 1 and type = #{type}
+	</select>
+
+	<insert id="saveTicket" parameterType="cn.ichazuo.model.table.Ticket"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_ticket(union_id,price,create_at,level,avatar,nick_name,last_time)
+		values(#{unionId},#{price},now(),#{level},#{avatar},#{nickName},#{lastTime})
+	</insert>
+
+	<select id="findTicket" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Ticket">
+		select id,union_id as
+		unionId,price,favour,level,avatar,nick_name as
+		nickName,status,last_time as lastTime from t_ticket where id = #{id}
+	</select>
+
+	<update id="updateTicketFavour" parameterType="java.lang.Long">
+		update t_ticket
+		set favour = favour + 1 where id = #{id}
+	</update>
+
+	<select id="findHaveTicket" parameterType="java.lang.String"
+		resultType="java.lang.Long">
+		select ifnull(id,0) from t_ticket where union_id =
+		#{unionId} limit 1
+	</select>
+
+	<update id="updateTicketStatus" parameterType="java.util.Map">
+		update t_ticket
+		set status = #{status} where union_id = #{unionId}
+	</update>
+
+	<!-- 查询课程评论50条 -->
+	<select id="findOnlineCourseCommentLimit50" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OnlineCourseCommentInfo">
+		select c.id,c.content,if(c.avatar!='',c.avatar,m.avatar) as
+		avatar,if(c.nick_name!='',c.nick_name,m.nick_name) as
+		nickName,c.create_at as createAt
+		from t_course_online_comment c left join t_member m on m.id = c.member_id
+		where 1=1 and c.status = 1 and m.status = 1
+		and c.course_id =
+		#{courseId}
+		order by c.create_at desc limit 50
+	</select>
+
+	<!-- 修改网页课程点击数量 -->
+	<update id="updateWebCourseClickNumber" parameterType="java.lang.Long">
+		update
+		t_course set web_click_number = web_click_number + 1 where id = #{id}
+	</update>
+
+	<!-- 查询最大版本号 -->
+	<select id="findAppVersionMax" parameterType="java.lang.String"
+		resultType="cn.ichazuo.model.table.Version">
+		select id,version,weight,create_at as
+		createAt,client,status from t_version where client = #{client} order
+		by weight desc limit 1
+	</select>
+
+	<!-- 查询当前版本号 -->
+	<select id="findAppVersionByMap" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.Version">
+		select id,version,weight,create_at as
+		createAt,client,status from t_version where client = #{client} and
+		version=#{version} limit 1
+	</select>
+
+	<update id="updateWebOrderFelicitate" parameterType="java.lang.String">
+		update
+		t_course_web_order set felicitate = felicitate + 1 where order_code =
+		#{code}
+	</update>
+
+	<select id="findFelicitateCount" parameterType="java.lang.String"
+		resultType="java.lang.Integer">
+		select ifnull(felicitate,0) from t_course_web_order where
+		order_code = #{code} limit 1
+	</select>
+
+	<update id="updateWebOrderFelicitates" parameterType="java.lang.Long">
+		update
+		t_course_web_order set felicitate = felicitate + 1 where id = #{id}
+	</update>
+	<update id="updateWebCrowdFelicitates" parameterType="java.lang.Long">
+		update
+		t_course_web_crowdfunding set felicitate = felicitate + 1 where id =
+		#{id}
+	</update>
+
+	<select id="getWebJobList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.WebJobInfo">
+		select j.id,j.job_name as
+		jobName,j.pay,j.tag,j.tags,j.type_id as typeId,i.`value` as
+		typeName,j.cover,
+		j.create_at as
+		createAt,j.address,j.email,j.company,j.avatar
+		from t_job j left join s_dict_item i on i.id = j.type_id where j.`status`
+		= 1
+		order by j.create_at desc
+		limit #{page},#{pageCount}
+	</select>
+	<select id="getWebJobInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.WebJobInfo">
+		select j.id,j.job_name as
+		jobName,j.pay,j.tag,j.tags,j.type_id as typeId,i.`value` as
+		typeName,j.cover,
+		j.create_at as
+		createAt,j.address,j.email,j.company,j.avatar,j.content
+		from t_job j left join s_dict_item i on i.id = j.type_id where j.`status`
+		= 1
+		and j.id = #{id} limit 1
+	</select>
+
+	<select id="getQRCodeURL" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select ifnull(qrcode,"") from t_course where id = #{id}
+	</select>
+</mapper>

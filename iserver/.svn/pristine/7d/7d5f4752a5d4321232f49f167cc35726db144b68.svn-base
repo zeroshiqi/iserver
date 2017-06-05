@@ -1,0 +1,1190 @@
+package cn.ichazuo.controller.app;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.component.UploadFile;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.commons.util.model.PhoneInfo;
+import cn.ichazuo.model.app.LoginInfo;
+import cn.ichazuo.model.app.OfflineCourseListInfo;
+import cn.ichazuo.model.app.UserAllInfo;
+import cn.ichazuo.model.app.UserSimpleInfo;
+import cn.ichazuo.model.log.PushLog;
+import cn.ichazuo.model.table.Code;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.LoginDetail;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.MemberFavour;
+import cn.ichazuo.model.table.MemberInfo;
+import cn.ichazuo.model.table.ThirdMember;
+import cn.ichazuo.service.CodeService;
+import cn.ichazuo.service.CommonService;
+import cn.ichazuo.service.CommonService.ClientEnum;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.LogService;
+import cn.ichazuo.service.MemberService;
+
+/**
+ * @ClassName: MemberController
+ * @Description: (用户Controller)
+ * @author ZhaoXu
+ * @date 2015年7月18日 下午10:53:41
+ * @version V1.0
+ */
+@RequestMapping("/app")
+@Controller("app.memberController")
+public class MemberController extends BaseController {
+	@Autowired
+	private MemberService memberService;
+	@Autowired
+	private CommonService commonService;
+	@Autowired
+	private CodeService codeService;
+	@Autowired
+	private UploadFile uploadFile;
+	@Autowired
+	private CourseService courseService;
+	@Autowired
+	private LogService logService;
+	@Autowired
+	private ConfigInfo configInfo;
+
+	/**
+	 * @Title: login
+	 * @Description: (用户登录)
+	 * @param mobile 手机号
+	 * @param password 密码
+	 * @param info 手机信息
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/login")
+	public JSONObject login(String mobile, String password, PhoneInfo info) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password)) {
+				return error("参数缺失!");
+			}
+			Member member = memberService.findLoginMemberByMobile(mobile);
+			if (member == null) {
+				return error("用户不存在");
+			}
+			// 验证密码
+			if (member.getPassword().equals(PasswdEncryption.MD5(password))
+					|| PasswdEncryption.verify(password, member.getPassword())) {
+				// 更新设备号 客户端版本 token信息
+				member = setMemberPhoneInfo(info, member);
+				member.setLoginNumber(member.getLoginNumber() + 1);
+				
+				memberService.updateMember(member);
+			} else {
+				return error("密码错误!");
+			}
+
+			// 封装返回信息
+			LoginInfo login = new LoginInfo();
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setAccessToken(member.getAccessToken());
+			login.setId(member.getId());
+			login.setMobile(mobile);
+			login.setNickname(login.getNickname());
+			String openId = memberService.findOpenIdByMemberId(member.getId());
+			login.setOpenid(StringUtils.isNullOrEmpty(openId) ? "" : openId);
+			
+			return ok("登录成功!", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: register
+	 * @Description: (用户注册)
+	 * @param mobile
+	 *            手机号
+	 * @param password
+	 *            密码
+	 * @param code
+	 *            验证码
+	 * @param info
+	 *            手机信息
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/register")
+	public JSONObject register(String mobile, String password, String code, PhoneInfo info) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password)
+					|| StringUtils.isNullOrEmpty(code)) {
+				return error("参数缺失");
+			}
+			// 验证用户是否存在
+			Member member = memberService.findLoginMemberByMobile(mobile);
+			if (member != null) {
+				return error("手机号已存在，直接去登录吧");
+			}
+			Code smsCode = codeService.findCode(code, mobile);
+			if (smsCode == null) {
+				return error("验证码输入错误!");
+			}
+			member = new Member();
+			member.setMobile(mobile);
+			member.setPassword(PasswdEncryption.generate(password));
+			if (mobile.length() > 4) {
+				member.setNickName("用户" + mobile.substring(mobile.length() - 4));
+			} else {
+				member.setNickName("用户" + mobile);
+			}
+			member = setMemberPhoneInfo(info, member);
+			// 保存默认头像
+			member.setAvatar(commonService.getRandomAvatar());
+
+			memberService.register(member, smsCode,null);
+
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(mobile);
+			login.setOpenid("");
+			
+			return ok("注册成功", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: updateInfo
+	 * @Description: (更新用户信息)
+	 * @param userId
+	 * @param request
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateInfo")
+	public JSONObject updateInfo(Long userId, HttpServletRequest request) {
+		try {
+			if (NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+			Member member = memberService.findMemberById(userId);
+			if (member == null) {
+				return error("参数错误");
+			}
+			String nickname = request.getParameter("nickname"); // 昵称
+			if (!StringUtils.isNullOrEmpty(nickname)) {
+				if (!commonService.checkConetent(nickname)) {
+					return error("非法词汇!");
+				}
+				member.setNickName(nickname);
+				memberService.updateMember(member);
+				
+				return ok("修改成功!");
+			}
+
+			String gender = request.getParameter("gender"); // 性别
+			String birthday = request.getParameter("birthday");// 生日
+			// 以下两个同时传
+			String companyId = request.getParameter("companyId"); // 公司ID 没有 填0
+			String companyName = request.getParameter("companyName"); // 公司名称
+
+			String jobName = request.getParameter("jobName"); // 职位名称
+			String jobYear = request.getParameter("jobYear"); // 入职时间
+			String coreCapacityId = request.getParameter("coreCapacityId");// 核心能力
+
+			if ((StringUtils.isNullOrEmpty(companyId) && !StringUtils.isNullOrEmpty(companyName))
+					|| (!StringUtils.isNullOrEmpty(companyId) && StringUtils.isNullOrEmpty(companyName))) {
+				return error("公司信息参数缺失");
+			}
+			MemberInfo info = memberService.findMemberInfoByMemberId(userId);
+			if (info == null) {
+				return error("参数错误");
+			}
+			info.setGender(StringUtils.isNullOrEmpty(gender) ? info.getGender() : gender);
+			info.setBirthday(StringUtils.isNullOrEmpty(birthday) ? info.getBirthday()
+					: DateUtils.parseDate(birthday, DateUtils.DATE_FORMAT_NORMAL));
+			info.setJobName(StringUtils.isNullOrEmpty(jobName) ? info.getJobName() : jobName);
+			if (!StringUtils.isNullOrEmpty(jobYear)) {
+				// 保存年份
+				info.setJobYear(Integer.valueOf(jobYear));
+			}
+			if (!StringUtils.isNullOrEmpty(coreCapacityId) && !NumberUtils.isNullOrZero(Long.valueOf(coreCapacityId))) {
+				info.setCoreCapacityId(Long.valueOf(coreCapacityId));
+			}
+			if (!StringUtils.isNullOrEmpty(companyId) && !NumberUtils.isNullOrZero(Long.valueOf(companyId))) {
+				info.setCompanyId(Long.valueOf(companyId));
+			}
+			info.setCompanyName(StringUtils.isNullOrEmpty(companyName) ? info.getCompanyName() : companyName);
+			
+			memberService.updateMemberInfo(info);
+			return ok("更新成功");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: uploadAvatar
+	 * @Description: (上传,修改头像)
+	 * @param request
+	 * @param userId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/uploadAvatar")
+	public JSONObject uploadAvatar(HttpServletRequest request, Long userId) {
+		try {
+			if (NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+			Member member = memberService.findMemberById(userId);
+			if (member == null) {
+				return error("参数错误");
+			}
+			MultipartFile file = null;
+			try {
+				MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
+				file = multipartRequest.getFile("file");
+			} catch (Exception e) {
+				return error("请上传图片");
+			}
+
+			String path = uploadFile.upload(file, "avatar");
+			member.setAvatar(path);
+			memberService.updateMember(member);
+
+			return ok("修改成功", commonService.appenUrl(path));
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: findUserInfo
+	 * @Description: (查询用户信息)
+	 * @param userId
+	 *            目标用户id
+	 * @param fromId
+	 *            来源用户id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findUserInfoV2")
+	public JSONObject findUserInfoV2(Long userId, Long fromId) {
+		try {
+			if (NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+			UserAllInfo info = memberService.findMemberAllInfo(userId);
+			if (info == null) {
+				return error("参数错误");
+			}
+			if(info.getStatus() == 0){
+				return warning("此用户以重置!");
+			}
+			
+			if (!NumberUtils.isNullOrZero(fromId)) { // 是否为查看别人界面
+				MemberFavour favour = memberService.findFavour(fromId, userId);
+				if (favour != null && favour.getStatus() == 1) {
+					info.setIsFavour(1); // 赞过
+				}
+			}
+			// 别人赞我
+			info.setFavourCount(memberService.findFavourCount(userId, true));
+
+			// 我赞别人
+			info.setApproveCount(memberService.findFavourCount(userId, false));
+
+			List<String> teacherIds = memberService.findMyTeachers(userId);
+			List<String> count = new ArrayList<>();
+			teacherIds.forEach(ids -> {
+				String[] idArr = ids.split(",");
+				for(String id : idArr){
+					if(!StringUtils.isNullOrEmpty(id)){
+						if(count.contains(id)){
+							continue;
+						}
+						count.add(id);
+					}
+				}
+			});
+			// 我的老师
+			info.setTeacherCount(Long.valueOf(count.size()));
+			
+			// 参加课程
+			info.setCourseJoinCount(courseService.findMyJoinCourseCount(userId));
+			return ok("查询成功", info);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+
+	/**
+	 * @Title: resetPassword
+	 * @Description: (重置密码)
+	 * @param code 验证码
+	 * @param mobile  手机号
+	 * @param password  密码
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/resetPassword")
+	public JSONObject resetPassword(String code, String mobile, String password) {
+		try {
+			if (StringUtils.isNullOrEmpty(code) || StringUtils.isNullOrEmpty(mobile)
+					|| StringUtils.isNullOrEmpty(password)) {
+				return error("参数缺失!");
+			}
+			Code smsCode = codeService.findCode(code, mobile);
+			if (smsCode == null) {
+				return error("验证码输入错误!");
+			}
+			Member member = memberService.findLoginMemberByMobile(mobile);
+			if (member == null) {
+				return error("参数错误!");
+			}
+			member.setPassword(PasswdEncryption.generate(password));
+			memberService.resetPassword(smsCode, member);
+			
+			return ok("重置成功");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: boundWeixin 
+	 * @Description: (绑定微信) 
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/boundWeixin")
+	public JSONObject boundWeixin(String openid,Long userId,PhoneInfo info,String unionid){
+		try{
+			if(NumberUtils.isNullOrZero(userId) || StringUtils.isNullOrEmpty(openid)){
+				return error("参数缺失");
+			}
+			Member member = memberService.findMemberById(userId);
+			if(member == null){
+				return error("参数错误");
+			}
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(member.getMobile());
+			login.setOpenid(openid);
+
+			ThirdMember third = memberService.findThirdMember(1, openid);
+			if(StringUtils.isNullOrEmpty(unionid)){
+				unionid = "";
+			}
+			if (third == null) {
+				third = new ThirdMember();
+				third.setMemberId(userId);
+				third.setMark(1);
+				third.setOpenId(openid);
+				
+				third.setUnionid(unionid);
+				
+				memberService.saveThirdMember(third);
+				
+				return ok("绑定成功",login);
+			}else if(NumberUtils.isNullOrZero(third.getMemberId())){
+				
+				third.setMemberId(userId);
+				third.setUnionid(unionid);
+				
+				memberService.updateThirdMember(third);
+				return ok("绑定成功",login);
+			}else{
+				return warning("微信号为已存在用户，如果您强制绑定此微信号，原用户信息将会被全部删除，不能恢复。是否强制绑定？");
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: forcibleBoundWeixin 
+	 * @Description: (强制绑定微信) 
+	 * @param openid
+	 * @param userId
+	 * @param info
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/forcibleBoundWeixin")
+	public JSONObject forcibleBoundWeixin(String openid,Long userId,PhoneInfo info,String unionid){
+		try{
+			if(NumberUtils.isNullOrZero(userId) || StringUtils.isNullOrEmpty(openid)){
+				return error("参数缺失");
+			}
+			Member member = memberService.findMemberById(userId);
+			if(member == null){
+				return error("参数错误");
+			}
+			if(StringUtils.isNullOrEmpty(unionid)){
+				unionid = "";
+			}
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(member.getMobile());
+			login.setOpenid(openid);
+
+			ThirdMember third = memberService.findThirdMember(1, openid);
+			if (third == null || NumberUtils.isNullOrZero(third.getMemberId())) {
+				return error("参数错误");
+			}else{
+				Member deleteMember = memberService.findMemberById(third.getMemberId());
+				third.setMemberId(userId);
+				third.setUnionid(unionid);
+				if(deleteMember == null){
+					memberService.forcibleBoundWeixin(0L, third);
+				}else{
+					memberService.forcibleBoundWeixin(deleteMember.getId(), third);
+				}
+				return ok("绑定成功",login);
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+		
+	}
+	
+	/**
+	 * @Title: forcibleBoundMobile 
+	 * @Description: (强制绑定手机) 
+	 * @param mobile 手机号
+	 * @param password 密码
+	 * @param userId 用户ID
+	 * @param info 手机信息
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/forcibleBoundMobile")
+	public JSONObject forcibleBoundMobile(String mobile, String password,String code, Long userId,PhoneInfo info){
+		try{
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password) || NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失!");
+			}
+			Member deleteMember = memberService.findLoginMemberByMobile(mobile);
+			if(deleteMember == null){
+				return error("参数错误");
+			}
+			Code smsCode = codeService.findCode(code, mobile);
+			if (smsCode == null) {
+				return error("验证码输入错误!");
+			}
+			if(deleteMember.getId() == userId){
+				return error("手机号无法替换");
+			}
+			
+			Member boundMember = memberService.findMemberById(userId);
+			if(boundMember == null){
+				return error("参数错误!");
+			}
+			Params params = new Params();
+			params.putData("memberId", userId);
+			params.putData("mobile", mobile);
+			params.putData("password",PasswdEncryption.generate(password));
+			
+			memberService.forcibleBoundMobile(deleteMember.getId(), params,smsCode);
+			
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(boundMember.getAccessToken());
+			login.setAvatar(commonService.appenUrl(boundMember.getAvatar()));
+			login.setId(boundMember.getId());
+			login.setNickname(boundMember.getNickName());
+			login.setMobile(mobile);
+			String openId = memberService.findOpenIdByMemberId(boundMember.getId());
+			login.setOpenid(openId);
+
+			return ok("绑定成功", login);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: boundMobile
+	 * @Description: (第三方用户绑定手机)
+	 * @param mobile 手机号
+	 * @param passwrod 密码
+	 * @param nickname  昵称
+	 * @param avatar   头像
+	 * @param info   手机信息
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/boundMobileV2")
+	public JSONObject boundMobileV2(String mobile, String password, Long userId,PhoneInfo info,String code,HttpServletRequest request) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password) || NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失!");
+			}
+			Code smsCode = codeService.findCode(code, mobile);
+			if (smsCode == null) {
+				return error("验证码输入错误!");
+			}
+			Member member = memberService.findLoginMemberByMobile(mobile);
+			if (member != null) {
+				return warning("账号已存在,是否强制绑定(强制绑定后,原账号信息会全部清除)?");
+			} else {
+				member = memberService.findMemberById(userId);
+				if(member == null){
+					return error("参数错误!");
+				}
+				Params params = new Params();
+				params.putData("memberId", userId);
+				params.putData("mobile", mobile);
+				params.putData("password",PasswdEncryption.generate(password));
+				
+				memberService.updateMemberMobile(params,smsCode);
+			}
+
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(mobile);
+			String openId = memberService.findOpenIdByMemberId(member.getId());
+			login.setOpenid(openId);
+
+			return ok("绑定成功", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: thirdLogin
+	 * @Description: (第三方登录)
+	 * @param mark 标识
+	 * @param openid 第三方ID
+	 * @param info 手机信息
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/thirdLoginV2")
+	public JSONObject thirdLoginV2(Integer mark, String openid,String avatar, String nickname,PhoneInfo info,String unionid,HttpServletRequest request) {
+		try {
+			if (NumberUtils.isNullOrZero(mark) || StringUtils.isNullOrEmpty(openid)) {
+				return error("参数缺失");
+			}
+			Member member = null;
+			ThirdMember third = memberService.findThirdMember(mark, openid);
+			boolean isHave = false;
+			if (third == null || NumberUtils.isNullOrZero(third.getMemberId())) {
+				if(third == null){
+					// 保存第三方用户
+					third = new ThirdMember();
+					third.setMemberId(0L);
+					third.setMark(mark);
+					third.setOpenId(openid);
+				}
+				
+				//设置unionid
+				if(StringUtils.isNullOrEmpty(unionid)){
+					third.setUnionid("");
+				}else{
+					third.setUnionid(unionid);
+				}
+				
+				member = new Member();
+				member.setMobile("");
+				member.setPassword("");
+				member.setCreateAt(DateUtils.getNowDate());
+				member = setMemberPhoneInfo(info, member);
+				if(StringUtils.isNullOrEmpty(avatar)){
+					member.setAvatar(commonService.getRandomAvatar());
+				}else{
+					member.setAvatar(avatar);
+				}
+				member.setLoginNumber(1L);
+				member.setNickName(nickname == null? "" : nickname);
+				
+				memberService.saveThirdMemberV2(third,member,NumberUtils.isNullOrZero(third.getMemberId()));
+			}else{
+				member = memberService.findMemberById(third.getMemberId());
+				member = setMemberPhoneInfo(info, member);
+				member.setLoginNumber(member.getLoginNumber() + 1);
+				memberService.updateMember(member);
+				
+				if(!StringUtils.isNullOrEmpty(unionid) && StringUtils.isNullOrEmpty(third.getUnionid())){
+					Params params = new Params();
+					params.putData("id", third.getId());
+					params.putData("unionid", unionid);
+					
+					memberService.updateThirdUnionId(params);
+				}
+				
+				isHave = true;
+			}
+
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(member.getMobile());
+			login.setOpenid(openid);
+			
+			if(isHave){
+				return ok("登录成功", login);
+			}else{
+				return notFound("不存在", login);
+			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findMyTeacher 
+	 * @Description: (查询我的老师列表) 
+	 * @param userId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findMyTeacherList")
+	public JSONObject findMyTeacherList(Long userId){
+		try{
+			if(NumberUtils.isNullOrZero(userId)){
+				return error("参数错误");
+			}
+			List<String> teacherIds = memberService.findMyTeachers(userId);
+			List<UserSimpleInfo> userList = new ArrayList<>();
+			teacherIds.forEach(ids -> {
+				String[] idArr = ids.split(",");
+				for(String id : idArr){
+					if(!StringUtils.isNullOrEmpty(id)){
+						Long teacherId = Long.valueOf(id);
+						UserSimpleInfo info = memberService.findSimpleMemberInfo(teacherId);
+						if(info == null){
+							continue;
+						}
+						if(!userList.contains(info)){
+							userList.add(info);
+						}
+					}
+				}
+			});
+			return ok("ok",userList);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: findUserFavourList
+	 * @Description: (查询用户点赞列表)
+	 * @param userId 用户ID
+	 * @param type 类别 0: 我给别人点赞 1:别人给我点赞
+	 * @param page 分页
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findUserFavourList")
+	public JSONObject findUserFavourList(Long userId, Integer type, Page page) {
+		try {
+			if (NumberUtils.isNullOrZero(userId) || type == null) {
+				return error("参数缺失");
+			}
+			Params params = new Params(page.getNowPage());
+			
+			if (type == 1) {
+				params.putData("toMemberId", userId);
+			} else {
+				params.putData("fromMemberId", userId);
+			}
+			
+			List<UserSimpleInfo> infoList = memberService.findFavourList(params);
+			Integer count = memberService.findFavourCount(userId, type == 1);
+			return ok("查询成功", infoList, page.getNowPage(), count);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: updateMemberFavour
+	 * @Description: (用户之间点赞)
+	 * @param userId
+	 *            点赞ID
+	 * @param otherId
+	 *            被赞ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateMemberFavour")
+	public JSONObject updateMemberFavour(Long userId, Long otherId) {
+		try {
+			if (NumberUtils.isNullOrZero(userId) || NumberUtils.isNullOrZero(otherId)) {
+				return error("参数缺失");
+			}
+			Member fromMember = memberService.findMemberById(userId);
+			if(fromMember == null){
+				return error("参数错误");
+			}
+			MemberFavour favour = memberService.findFavour(userId, otherId);
+			if (favour == null) {
+				
+				
+				favour = new MemberFavour();
+				favour.setFromMemberId(userId);
+				favour.setToMemberId(otherId);
+				if(memberService.saveMemberFavour(favour)){
+					String msg = fromMember.getNickName() + "认可了你的核心能力";
+					commonService.pushIOSMessage(ClientEnum.ChaZuo, msg,String.valueOf(otherId));
+					
+					PushLog log = new PushLog();
+					log.setContent(msg);
+					log.setType("用户认可推送");
+					logService.savePushLog(log);
+				}
+			} else {
+				favour.setStatus(favour.getStatus() == 0 ? 1 : 0);
+				memberService.updateMemberFavour(favour);
+				if (favour.getStatus() == 1) {
+					String msg = fromMember.getNickName() + "认可了你的核心能力";
+					commonService.pushIOSMessage(ClientEnum.ChaZuo, msg,String.valueOf(otherId));
+					
+					PushLog log = new PushLog();
+					log.setContent(msg);
+					log.setType("用户认可推送");
+					logService.savePushLog(log);
+				}
+			}
+			Integer count = memberService.findFavourCount(otherId, true);
+			return ok("点赞成功", count);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findMyCourseJoinList 
+	 * @Description: (查询我参加的课程列表) 
+	 * @param userId
+	 * @param page
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findMyCourseJoinList")
+	public JSONObject findMyCourseJoinList(Long userId, Page page) {
+		try {
+			if (NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+			List<OfflineCourseListInfo> infoList = courseService.findMyJoinCourse(userId, page);
+			infoList.forEach(info ->{
+				//添加报名人数
+				info.setJoinNum(courseService.findCourseJoinCount(info.getId()));
+			});
+			int count = courseService.findMyJoinCourseCount(userId);
+			return ok("查询成功", infoList, page.getNowPage(), count);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: setMemberPhoneInfo
+	 * @Description: (将手机信息放入Member对象)
+	 * @param info
+	 *            手机信息
+	 * @param member
+	 *            用户
+	 * @return
+	 */
+	private Member setMemberPhoneInfo(PhoneInfo info, Member member) {
+		member.setAccessToken(CodeUtils.getUUID());
+		member.setClientVersion(info.getClientVersion());
+		member.setDeviceId(info.getDeviceId());
+		return member;
+	}
+
+	
+	/**
+	 * @Title: findUserInfo
+	 * @Description: (查询用户信息)
+	 * @param userId
+	 *            目标用户id
+	 * @param fromId
+	 *            来源用户id
+	 * @return
+	 */
+	//1.1.2版之前使用
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/findUserInfo")
+	public JSONObject findUserInfo(Long userId, Long fromId) {
+		try {
+			if (NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+			UserAllInfo info = memberService.findMemberAllInfo(userId);
+			if (info == null) {
+				return error("参数错误");
+			}
+			
+			if (!NumberUtils.isNullOrZero(fromId)) { // 是否为查看别人界面
+				MemberFavour favour = memberService.findFavour(fromId, userId);
+				if (favour != null && favour.getStatus() == 1) {
+					info.setIsFavour(1); // 赞过
+				}
+			}
+			// 别人赞我
+			info.setFavourCount(memberService.findFavourCount(userId, true));
+
+			// 我赞别人
+			info.setApproveCount(memberService.findFavourCount(userId, false));
+
+			// 点赞课程
+			info.setCourseCount(courseService.findMyFavourCourseCount(userId));
+
+			// 参加课程
+			info.setCourseJoinCount(courseService.findMyJoinCourseCount(userId));
+			return ok("查询成功", info);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: findMyCourseFavour
+	 * @Description: (查询我认同的课程信息)
+	 * @param userId
+	 * @param page
+	 * @return
+	 */
+	//1.1.2前使用 
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/findMyCourseFavour")
+	public JSONObject findMyCourseFavour(Long userId, Page page) {
+		try {
+			if (NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+			List<OfflineCourseListInfo> infoList = courseService.findMyFavourCourse(userId, page);
+			Integer count = courseService.findMyFavourCourseCount(userId);
+			return ok("查询成功", infoList, page.getNowPage(), count);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: thirdLogin
+	 * @Description: (第三方登录)
+	 * @param mark 标识
+	 * @param openid 第三方ID
+	 * @param info 手机信息
+	 * @return
+	 */
+	//1.1.2前使用
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/thirdLogin")
+	public JSONObject thirdLogin(Integer mark, String openid, PhoneInfo info,HttpServletRequest request) {
+		try {
+			if (NumberUtils.isNullOrZero(mark) || StringUtils.isNullOrEmpty(openid)) {
+				return error("参数缺失");
+			}
+			ThirdMember third = memberService.findThirdMember(mark, openid);
+			if (third == null) {
+				// 保存第三方用户
+				third = new ThirdMember();
+				third.setMemberId(0L);
+				third.setMark(mark);
+				third.setOpenId(openid);
+				third.setUnionid("");
+				memberService.saveThirdMember(third);
+				return notFound("用户不存在");
+			} else if (NumberUtils.isNullOrZero(third.getMemberId())) {
+				// 已保存第三方用户
+				// 但是没绑定手机
+				return notFound("用户不存在");
+			}
+
+			Member member = memberService.findMemberById(third.getMemberId());
+			member = setMemberPhoneInfo(info, member);
+			member.setLoginNumber(member.getLoginNumber() + 1);
+			memberService.updateMember(member);
+
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(member.getMobile());
+			
+			return ok("登录成功", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: boundMobile
+	 * @Description: (第三方用户绑定手机)
+	 * @param mobile 手机号
+	 * @param passwrod 密码
+	 * @param mark 标识
+	 * @param openid  第三方id
+	 * @param nickname  昵称
+	 * @param avatar   头像
+	 * @param info   手机信息
+	 * @return
+	 */
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/boundMobile")
+	public JSONObject boundMobile(String mobile, String password, Integer mark, String openid, String nickname,String avatar, PhoneInfo info,HttpServletRequest request) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password)
+					|| NumberUtils.isNullOrZero(mark) || StringUtils.isNullOrEmpty(openid)) {
+				return error("参数缺失!");
+			}
+			ThirdMember third = memberService.findThirdMember(mark, openid);
+			if (third == null) {
+				return error("参数错误!");
+			}
+			Member member = memberService.findLoginMemberByMobile(mobile);
+			boolean flag = true;
+			if (member != null) {
+				if (member.getStatus() == 0) {
+					return error("用户被禁用!");
+				}
+				// 密码不正确
+				if (!PasswdEncryption.verify(password, member.getPassword())
+						&& !PasswdEncryption.MD5(password).equals(member.getPassword())) {
+					return error("手机号已经存在，可是密码不对…");
+				}
+				flag = false;
+			} else {
+				member = new Member();
+				member.setAvatar(StringUtils.isNullOrEmpty(avatar) ? commonService.getRandomAvatar() : avatar);
+				member.setNickName(StringUtils.isNullOrEmpty(nickname) ? "" : nickname);
+				member.setMobile(mobile);
+				member.setPassword(PasswdEncryption.generate(password));
+			}
+			member = setMemberPhoneInfo(info, member);
+			member.setLoginNumber(member.getLoginNumber() == null ? 1 : member.getLoginNumber() + 1);
+			memberService.boundThird(third, member, flag);
+
+			// 返回登录信息
+			LoginInfo login = new LoginInfo();
+			login.setAccessToken(member.getAccessToken());
+			login.setAvatar(commonService.appenUrl(member.getAvatar()));
+			login.setId(member.getId());
+			login.setNickname(member.getNickName());
+			login.setMobile(mobile);
+			
+			return ok("保存成功!", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: businessLogin
+	 * @Description: (App企业用户登录)
+	 * @param mobile 手机号
+	 * @param password 密码
+	 * @param info 手机信息
+	 * @return
+	 */
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/businessLogin")
+	public JSONObject businessLogin(String mobile, String password, String platform,String client,String version) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || StringUtils.isNullOrEmpty(password)) {
+				return error("参数缺失!");
+			}
+			Employee employee = memberService.findBusinessLoginMemberByMobile(mobile);
+			if (employee == null) {
+				return error("用户不存在");
+			}
+			// 验证密码
+			if (employee.getPassword().equals(PasswdEncryption.MD5(password))
+					|| PasswdEncryption.verify(password, employee.getPassword())) {
+				// 保存登录信息到登录明细表
+				Date date = new Date();
+				LoginDetail detail = new LoginDetail();
+				detail.setEmployeeId(employee.getId().toString());
+				detail.setEmployeeMobile(mobile);
+				detail.setEmployeeName(employee.getName());
+				detail.setLoginTime(date);
+				detail.setVersion(version);
+				detail.setPlatform(platform);
+				detail.setClient(client);
+				memberService.saveBusinessLoginDetail(detail);
+			} else {
+				return error("密码错误!");
+			}
+
+			// 封装返回信息
+			LoginInfo login = new LoginInfo();
+			login.setAvatar(commonService.appenUrl(employee.getAvatar()));
+//			login.setAccessToken(employee.getAccessToken());
+			login.setId(employee.getId());
+			login.setMobile(mobile);
+			login.setNickname(employee.getName());
+			return ok("登录成功!", login);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateBusinessUserAvatar 
+	 * @Description: (修改企业用户头像) 
+	 * @param request
+	 * @param employeeId
+	 * @return
+	 */
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/updateBusinessUserAvatar")
+	public JSONObject updateBusinessUserAvatar(HttpServletRequest request,Long employeeId,String client,String version){
+		try{
+			Employee employee = new Employee();
+			//头像上传
+			MultipartFile file = null;
+			try{
+				MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
+				file = multipartRequest.getFile("file");
+			}catch(Exception e){
+				//无头像上传
+			}
+			employee.setId(employeeId);
+			if(file == null){
+				employee.setAvatar(null);
+			}else{
+				employee.setAvatar(uploadFile.upload(file, "avatar"));
+			}
+//			Member m = memberService.findMemberById(memberId);
+//			MemberInfo i = memberService.findMemberInfoByMemberId(memberId);
+			String avatarAddress = commonService.appenUrl(uploadFile.upload(file, "avatar"));
+			if(memberService.saveEmployeeInfo(employee)){
+				return ok("操作成功",avatarAddress);
+			}
+			return error("操作失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(ADMIN_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateBusinessUserPassword 
+	 * @Description: (修改企业用户密码) 
+	 * @param oldPassword
+	 * @param employeeId
+	 * @return
+	 */
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/updateBusinessUserPassword")
+	public JSONObject updateBusinessUserPassword(String oldPassword,String newPassword,Long employeeId,String client,String version){
+		Employee employee = memberService.BusinessUserById(employeeId);
+		try{
+			if(employee.getPassword().equals(PasswdEncryption.MD5(oldPassword))
+					|| PasswdEncryption.verify(oldPassword, employee.getPassword())) {
+				employee.setPassword(PasswdEncryption.generate(newPassword.trim()));
+				if(memberService.updateBusinessUserPassword(employee)){
+					return ok("修改密码成功");
+				}
+				return error("修改密码失败");
+			}else{
+				return error("原密码错误！");
+			}
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(ADMIN_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: updateBusinessUserName 
+	 * @Description: (修改企业用户密码) 
+	 * @param oldPassword
+	 * @param employeeId
+	 * @return
+	 */
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/updateBusinessUserName")
+	public JSONObject updateBusinessUserName(String name,Long employeeId,String client,String version){
+		Employee employee = new Employee();
+		try{
+			employee.setName(name);
+			employee.setId(employeeId);
+			if(memberService.updateBusinessUserName(employee)){
+				return ok("修改昵称成功",name);
+			}
+			return error("修改密码失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(ADMIN_SYSTEM_ERROR);
+		}
+	}
+
+
+}

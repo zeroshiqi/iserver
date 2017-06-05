@@ -1,0 +1,362 @@
+package cn.ichazuo.service;
+
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.SortedMap;
+
+import javax.annotation.Resource;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseService;
+import cn.ichazuo.commons.component.CacheInfo;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.component.RedisClient;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.commons.util.sms.HttpSend;
+import cn.ichazuo.commons.util.sms.MD5;
+import cn.ichazuo.dao.CommonDao;
+import cn.ichazuo.model.app.CatalogCourseList;
+import cn.ichazuo.model.app.DictItem;
+import cn.ichazuo.model.app.Images;
+import cn.ichazuo.model.app.KeyWords;
+import cn.ichazuo.model.app.OnlineCourseCommentInfo;
+import cn.ichazuo.model.app.OnlineCourseListInfo;
+import cn.ichazuo.model.app.UserInfo;
+import cn.ichazuo.model.app.WebJobInfo;
+import cn.ichazuo.model.app.WebOfflineCourseInfo;
+import cn.ichazuo.model.table.ArticleCommentFavour;
+import cn.ichazuo.model.table.Catalog;
+import cn.ichazuo.model.table.CourseWebInfo;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.Question;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.Version;
+import cn.ichazuo.model.app.QuestionListInfo;
+import cn.ichazuo.model.app.Recommend;
+import cn.ichazuo.model.app.StudyDetail;
+import cn.ichazuo.model.app.StudyPlan;
+import cn.jpush.api.JPushClient;
+import cn.jpush.api.common.APIConnectionException;
+import cn.jpush.api.common.APIRequestException;
+import cn.jpush.api.push.PushResult;
+import cn.jpush.api.push.model.Message;
+import cn.jpush.api.push.model.Options;
+import cn.jpush.api.push.model.Platform;
+import cn.jpush.api.push.model.PushPayload;
+import cn.jpush.api.push.model.audience.Audience;
+import cn.jpush.api.push.model.notification.IosNotification;
+import cn.jpush.api.push.model.notification.Notification;
+
+/**
+ * @ClassName: BusinessService
+ * @Description: (通用Service)
+ * @author ZhaoXu
+ * @date 2015年7月18日 下午10:13:58
+ * @version V1.0
+ */
+@Service("businessService")
+public class BusinessService extends BaseService {
+	private static final long serialVersionUID = 1L;
+	@Resource
+	private CommonDao commonDao;
+	@Autowired
+	private CodeService codeService;
+	@Autowired
+	private ConfigInfo configInfo;
+	@Autowired
+	private RedisClient redisClient;
+	@Autowired
+	private CacheInfo cacheInfo;
+
+	/**
+	 * 查询课程分类列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<Catalog> findCatalogList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<Catalog> infos = commonDao.findCatalogList(par.getMap());
+        // 截取时间字符串
+		infos.forEach(info -> {
+			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+			}
+			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+			}		
+			});
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> getCatalogCourseList(Long id){
+		List<CatalogCourseList> infos = commonDao.getCatalogCourseList(id);
+		 // 截取时间字符串
+//		infos.forEach(info -> {
+//			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+//				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+//			}
+//			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+//				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+//			}		
+//			});
+		return infos;
+	}
+	
+	/**
+	 * @Title: addStudyNumber 
+	 * @Description: (更新文章评论点赞) 
+	 * @param favour
+	 * @return
+	 */
+	public boolean addStudyNumber(Long courseId){
+		return commonDao.addStudyNumber(courseId) > 0;
+	}
+	
+	/**
+	 * @Title: addStudyDetail 
+	 * @Description: (添加学员学习的详细记录)
+	 * @param favour
+	 * @return
+	 */
+	public boolean addStudyDetail(Long courseId,Long employeeId,Long studyTime,Long isFinished,String status){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("studyTime", studyTime);
+		params.putData("isFinished", isFinished);
+		params.putData("status", status);
+		return commonDao.addStudyDetail(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: findStudyDetail 
+	 * @Description: (查询学员是否已经完成过此课程)
+	 * @param favour
+	 * @return
+	 */
+	public List<StudyDetail>  findStudyDetail(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.findStudyDetail(params.getMap());
+	}
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCatalogCourseList(int keyWords,int timeLength,int level,Page page){
+		Params params = new Params(page.getNowPage());
+		int max=timeLength+10;
+//		if(timeLength!=0){
+//			max = timeLength+10;
+//		}
+		params.putData("keyWords", keyWords);
+		params.putData("max", max);
+		params.putData("timeLength", timeLength);
+		params.putData("level", level);
+		List<CatalogCourseList> infos = commonDao.findCatalogCourseList(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	
+	/**
+	 * 查询数据字典
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<DictItem> findDictItemList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<DictItem> infos = commonDao.findDictItemList(par.getMap());
+		return infos;
+	}
+	
+	/**
+	 * @Title: 查询学习计划是否已存在
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<StudyPlan> queryStudyPlan(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyPlan(params.getMap());
+	}
+	/**
+	 * @Title: 添加学习计划 
+	 * @Description: (添加学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean saveStudyPlan(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("status", "1");
+		return commonDao.saveStudyPlan(params.getMap()) > 0;
+	}
+	
+	/**
+	 * @Title: 更新学习计划 
+	 * @Description: (更新学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean updateStudyPlan(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("status", "2");
+		return commonDao.updateStudyPlan(params.getMap()) > 0;
+	}
+	/**
+	 * @Title: 根据学员ID查询学习计划
+	 * @Description: (根据学员ID查询学习计划)
+	 * @param favour
+	 * @return
+	 */
+	public List<CatalogCourseList> queryStudyPlanList(int employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		return commonDao.queryStudyPlanList(params.getMap());
+	}
+	
+	/**
+	 * @Title: 查询学习计划是否已存在
+	 * @Description: (查询学习计划是否已存在 )
+	 * @param favour
+	 * @return
+	 */
+	public List<Recommend> queryRecommend(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		return commonDao.queryRecommend(params.getMap());
+	}
+	/**
+	 * @Title: 添加学习计划 
+	 * @Description: (添加学习计划 )
+	 * @param favour
+	 * @return
+	 */
+	public boolean saveRecommend(Long courseId,Long employeeId){
+		Params params = new Params();
+		params.putData("courseId", courseId);
+		params.putData("employeeId", employeeId);
+		params.putData("status", "1");
+		return commonDao.saveRecommend(params.getMap()) > 0;
+	}
+	
+	/**
+	 * 查询数据字典
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<KeyWords> findKeyWordsList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<KeyWords> infos = commonDao.findKeyWordsList(par.getMap());
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCourseListByKeyWords(String keyWords,Page page){
+		Params params = new Params(page.getNowPage());
+		params.putData("keyWords", super.fuzzy(keyWords));
+		List<CatalogCourseList> infos = commonDao.findCourseListByKeyWords(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	/**
+	 * 查询课程讲师列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<CatalogCourseList> findTeachersList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<CatalogCourseList> infos = commonDao.findTeachersList(par.getMap());
+		return infos;
+	}
+	/**
+	 * 根据讲师查询课程列表
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<CatalogCourseList> findCourseListByTeacher(String teacher,Page page){
+		Params params = new Params(page.getNowPage());
+		params.putData("teacher", teacher);
+		List<CatalogCourseList> infos = commonDao.findCourseListByTeacher(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	/**
+	 * @Title: findOnlineCourseContent 
+	 * @Description: (查询线上课程简介) 
+	 * @param id
+	 * @return
+	 */
+	public Employee findEmployeeDetail(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		Employee infos = commonDao.findEmployeeDetail(params.getMap());
+		// 截取时间字符串
+		return infos;
+	}
+	
+	/**
+	 * @Title: findOnlineCourseContent 
+	 * @Description: (查询线上课程简介) 
+	 * @param id
+	 * @return
+	 */
+	public int findEmployeePlanCount(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findEmployeePlanCount(params.getMap());
+		// 截取时间字符串
+		return count;
+	}
+	/**
+	 * @Title: findEmployeeStudyTimeCount 
+	 * @Description: (查询学员学习总时长) 
+	 * @param id
+	 * @return
+	 */
+	public int findEmployeeStudyTimeCount(Long employeeId){
+		Params params = new Params();
+		params.putData("employeeId", employeeId);
+		int count = commonDao.findEmployeeStudyTimeCount(params.getMap());
+		// 截取时间字符串
+		return count;
+	}
+}

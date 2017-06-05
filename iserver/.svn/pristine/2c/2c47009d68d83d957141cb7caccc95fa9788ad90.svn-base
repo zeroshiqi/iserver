@@ -1,0 +1,730 @@
+package cn.ichazuo.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import cn.ichazuo.model.admin.CourseImageListInfo;
+import cn.ichazuo.model.admin.CourseListInfo;
+import cn.ichazuo.model.admin.OfflineMsgInfo;
+import cn.ichazuo.model.app.OfflineCourseCommentInfo;
+import cn.ichazuo.model.app.OfflineCourseInfo;
+import cn.ichazuo.model.app.OfflineCourseListInfo;
+import cn.ichazuo.model.app.OfflineJoinMember;
+import cn.ichazuo.model.app.OfflineSigned;
+import cn.ichazuo.model.app.OnlineCourseCommentInfo;
+import cn.ichazuo.model.app.OnlineCourseListInfo;
+import cn.ichazuo.model.app.OnlineCourseResultInfo;
+import cn.ichazuo.model.app.UserSimpleInfo;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.CourseOfflineJoin;
+import cn.ichazuo.model.table.CourseOnlineJoin;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.model.table.OfflineCourseComment;
+import cn.ichazuo.model.table.OfflineCourseCommentFavour;
+import cn.ichazuo.model.table.OfflineCourseFavour;
+import cn.ichazuo.model.table.OfflineCourseImage;
+import cn.ichazuo.model.table.OnlineCourse;
+import cn.ichazuo.model.table.OnlineCourseComment;
+import cn.ichazuo.model.table.OnlineCourseFavour;
+
+/**
+ * @ClassName: CourseDao 
+ * @Description: (课程DAO) 
+ * @author ZhaoXu
+ * @date 2015年7月21日 上午12:48:14 
+ * @version V1.0
+ */
+public interface CourseDao {
+	
+	/**
+	 * @Title: findOnlineCourseFavour 
+	 * @Description: (查询线上课程点赞) 
+	 * @param map
+	 * @return
+	 */
+	public OnlineCourseFavour findOnlineCourseFavour(Map<String,Object> map);
+	
+	/**
+	 * @Title: saveOnlineCourseFavour 
+	 * @Description: (保存线上课程点赞信息) 
+	 * @param favour
+	 * @return
+	 */
+	public int saveOnlineCourseFavour(OnlineCourseFavour favour);
+	
+	/**
+	 * @Title: updateOnlineCourseFavour 
+	 * @Description: (修改线上课程点赞信息) 
+	 * @param favour
+	 */
+	public void updateOnlineCourseFavour(OnlineCourseFavour favour);
+	
+	/**
+	 * @Title: saveCourse 
+	 * @Description: (保存课程) 
+	 * @param course
+	 * @return
+	 */
+	public int saveCourse(Course course);
+	
+	/**
+	 * @Title: findOfflineMsgInfo 
+	 * @Description: (查询线下课程,发送短信) 
+	 * @param id
+	 * @return
+	 */
+	public OfflineMsgInfo findOfflineMsgInfo(Long id);
+	
+	/**
+	 * @Title: updateOfflineCourseJoinNumber 
+	 * @Description: (修改线下课程报名人数) 
+	 * @param map
+	 * @return
+	 */
+	public int updateOfflineCourseJoinNumber(Map<String,Object> map);
+	
+	/**
+	 * @Title: findCourseWebJoinNumber 
+	 * @Description: (查询Web线下课程报名人数) 
+	 * @param courseId
+	 * @return
+	 */
+	public int findCourseWebJoinNumber(Long courseId);
+	
+	/**
+	 * @Title: findOfflineCourseFavourCount 
+	 * @Description: (查询课程点赞人数) 
+	 * @param courseId
+	 * @return
+	 */
+	public Integer findOfflineCourseFavourCount(Long courseId);
+	
+	/**
+	 * @Title: saveOfflineCourse 
+	 * @Description: (保存线下课程信息) 
+	 * @param offline
+	 * @return
+	 */
+	public int saveOfflineCourse(OfflineCourse offline);
+	
+	/**
+	 * @Title: saveOnlineCourse 
+	 * @Description: (保存线上课程信息) 
+	 * @param online
+	 * @return
+	 */
+	public int saveOnlineCourse(OnlineCourse online);
+	
+	/**
+	 * @Title: findMyFavourCourseCount 
+	 * @Description: (查询我认可的线下课程数量) 
+	 * @param memberId 用户id
+	 * @return
+	 */
+	public int findMyFavourCourseCount(Long memberId);
+	
+	/**
+	 * @Title: findMyJoinCourseCount 
+	 * @Description: (查询我参加的线下课程数量) 
+	 * @param memberId 用户id
+	 * @return
+	 */
+	public int findMyJoinCourseCount(Long memberId);
+	
+	/**
+	 * @Title: findMyFavourCourseList 
+	 * @Description: (查询我认可的线下课程列表) 
+	 * @param params 参数
+	 * @return
+	 */
+	public List<OfflineCourseListInfo> findMyFavourCourseList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findMyJoinCourseList 
+	 * @Description: (查询我参加的线下课程列表) 
+	 * @param params 参数
+	 * @return
+	 */
+	public List<OfflineCourseListInfo> findMyJoinCourseList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findCourseJoinNumber 
+	 * @Description: (查询线下课程报名人数) 
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	public int findCourseJoinNumber(Long courseId);
+	
+	/**
+	 * @Title: saveCourseJoin 
+	 * @Description: (保存线下课程报名信息) 
+	 * @param join 报名信息
+	 * @return
+	 */
+	public int saveCourseJoin(CourseOfflineJoin join);
+	
+	/**
+	 * @Title: saveCourseFavour 
+	 * @Description: (保存线下课程点赞信息) 
+	 * @param favour 点赞信息
+	 * @return
+	 */
+	public int saveCourseFavour(OfflineCourseFavour favour);
+	
+	/**
+	 * @Title: findOfflineCourseByCourseId 
+	 * @Description: (根据课程ID查询线下课程信息) 
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	public OfflineCourse findOfflineCourseByCourseId(Long courseId);
+	
+	/**
+	 * @Title: findCourseFavour 
+	 * @Description: (查询线下课程点赞信息) 
+	 * @param params 参数
+	 * @return
+	 */
+	public OfflineCourseFavour findCourseFavour(Map<String,Object> params);
+	
+	/**
+	 * @Title: findCourseJoin 
+	 * @Description: (查询线下课程报名信息) 
+	 * @param params 参数
+	 * @return
+	 */
+	public CourseOfflineJoin findCourseJoin(Map<String,Object> params);
+	
+	/**
+	 * @Title: updateOfflineCourse 
+	 * @Description: (修改线下课程信息) 
+	 * @param course
+	 * @return
+	 */
+	public int updateOfflineCourse(OfflineCourse course);
+	
+	/**
+	 * @Title: updateCourseFavourStatus 
+	 * @Description: (修改线下课程点赞状态) 
+	 * @param favour 点赞信息
+	 * @return
+	 */
+	public int updateCourseFavourStatus(OfflineCourseFavour favour);
+	
+	/**
+	 * @Title: findCourseFavourUserInfo 
+	 * @Description: (查询课程点赞用户列表) 
+	 * @param courseId 课程ID
+	 * @return
+	 */
+	public List<UserSimpleInfo> findCourseFavourUserInfo(Long courseId);
+	
+	/**
+	 * @Title: findOfflineCourseList 
+	 * @Description: (查询线下课程列表) 
+	 * @param params
+	 * @return
+	 */
+	@Deprecated
+	public List<OfflineCourseListInfo> findOfflineCourseList(Map<String,Object> params);
+	public List<OfflineCourseListInfo> findOfflineCourseListV2(Map<String,Object> params);
+	
+	/**
+	 * @Title: findOfflineCourseListCount 
+	 * @Description: (查询线下课程总条数) 
+	 * @param params 参数
+	 * @return
+	 */
+	@Deprecated
+	public int findOfflineCourseListCount(Map<String,Object> params);
+	public Long findOfflineCourseListCountV2(Map<String,Object> params);
+	
+	/**
+	 * @Title: findOfflineCourseListInfoByCourseId 
+	 * @Description: (查询线下课程列表中一条数据) 
+	 * @param courseId
+	 * @return
+	 */
+	public OfflineCourseListInfo findOfflineCourseListInfoByCourseId(Long courseId);
+	
+	/**
+	 * @Title: findOfflineCourseAllInfo 
+	 * @Description: (查询课程全部信息) 
+	 * @param courseId
+	 * @return
+	 */
+	public OfflineCourseInfo findOfflineCourseAllInfo(Long courseId);
+	
+	/**
+	 * @Title: findCourseImages 
+	 * @Description: (查询课程图片) 
+	 * @param courseId
+	 * @return
+	 */
+	public List<OfflineCourseImage> findOfflineCourseImages(Long courseId);
+	
+	/**
+	 * @Title: findCourseJoinUserList 
+	 * @Description: (查询课程的报名用户列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<UserSimpleInfo> findCourseJoinUserList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findCourseCommentByCourseId 
+	 * @Description: (根据课程ID查询课程评论) 
+	 * @param params
+	 * @return
+	 */
+	public List<OfflineCourseCommentInfo> findCourseCommentByCourseId(Map<String,Object> params);
+	
+	/**
+	 * @Title: findCourseCommentById 
+	 * @Description: (根据ID查询课程评论信息) 
+	 * @param commentId
+	 * @return
+	 */
+	public OfflineCourseCommentInfo findCourseCommentById(Long commentId);
+	
+	/**
+	 * @Title: findCourseCommentFavour 
+	 * @Description: (查询评论点赞信息) 
+	 * @param params
+	 * @return
+	 */
+	public OfflineCourseCommentFavour findCourseCommentFavour(Map<String,Object> params);
+	
+	/**
+	 * @Title: saveCourseCommentFavour 
+	 * @Description: (保存课程评论点赞信息) 
+	 * @param favour
+	 * @return
+	 */
+	public int saveCourseCommentFavour(OfflineCourseCommentFavour favour);
+	
+	/**
+	 * @Title: updateCourseCommentFavourStatus 
+	 * @Description: (修改课程评论点赞状态) 
+	 * @param favour
+	 * @return
+	 */
+	public int updateCourseCommentFavourStatus(OfflineCourseCommentFavour favour);
+	
+	/**
+	 * @Title: findCourseCommentFavourCount 
+	 * @Description: (查询课程评论点赞数量) 
+	 * @param courseId
+	 * @return
+	 */
+	public int findCourseCommentFavourCount(Long courseId);
+	
+	/**
+	 * @Title: saveCourseComment 
+	 * @Description: (保存课程评论) 
+	 * @param comment
+	 * @return
+	 */
+	public int saveCourseComment(OfflineCourseComment comment);
+	
+	/**
+	 * @Title: findMemberCommnetCount 
+	 * @Description: (查询当天用户评论课程数量) 
+	 * @param params
+	 * @return
+	 */
+	public int findMemberCommnetCount(Map<String,Object> params);
+	
+	/**
+	 * @Title: findOfflineCourseInfo 
+	 * @Description: (查询线下课程简介) 
+	 * @param courseId
+	 * @return
+	 */
+	public String findOfflineCourseInfo(Long courseId);
+	
+	/**
+	 * @Title: findOnlineCourseList 
+	 * @Description: (查询线上课程列表) 
+	 * @param params
+	 * @return
+	 */
+	@Deprecated
+	public List<OnlineCourseListInfo> findOnlineCourseList(Map<String,Object> params);
+	public List<OnlineCourseListInfo> findOnlineCourseListV2(Map<String,Object> params);
+	
+	public Long findOnlineCourseCountV2();
+	
+	/**
+	 * @Title: findOnlineCourseFavourCount 
+	 * @Description: (查询课程点赞数量) 
+	 * @param courseId
+	 * @return
+	 */
+	public Long findOnlineCourseFavourCount(Long courseId);
+	
+	/**
+	 * @Title: findOnlineCourseInfoByCourseId 
+	 * @Description: (根据ID查询线上课程信息) 
+	 * @param courseId
+	 * @return
+	 */
+	public OnlineCourseListInfo findOnlineCourseInfoByCourseId(Long courseId);
+	
+	/**
+	 * @Title: updateCourseOnline 
+	 * @Description: (修改线上课程信息) 
+	 * @param onlne
+	 * @return
+	 */
+	public int updateOnlineCourse(OnlineCourse onlne);
+	
+	/**
+	 * @Title: saveOnlineJoin 
+	 * @Description: (保存线上课程参加信息) 
+	 * @param join
+	 * @return
+	 */
+	public int saveOnlineJoin(CourseOnlineJoin join);
+	
+	/**
+	 * @Title: updateOnlineJoinStatus 
+	 * @Description: (修改线上课程参加信息状态) 
+	 * @param join
+	 * @return
+	 */
+	public int updateOnlineJoinStatus(CourseOnlineJoin join);
+	
+	/**
+	 * @Title: findOnlineJoinInfo 
+	 * @Description: (查询线上课程参加信息) 
+	 * @param params
+	 * @return
+	 */
+	public CourseOnlineJoin findOnlineJoinInfo(Map<String, Object> params);
+	
+	/**
+	 * @Title: findOnlineCourseByCourseId 
+	 * @Description: (查询线上课程信息) 
+	 * @param courseId
+	 * @return
+	 */
+	public OnlineCourse findOnlineCourseByCourseId(Long courseId);
+	
+	/**
+	 * @Title: findOnlineWebCourseByCourseId 
+	 * @Description: (查询Web线上课程信息) 
+	 * @param courseId
+	 * @return
+	 */
+	public OnlineCourseResultInfo findOnlineWebCourseByCourseId(Long courseId);
+	
+	/**
+	 * @Title: findOnlineWebCourseByCourseSell 
+	 * @Description: (查询Web线上课程信息) 
+	 * @param courseId
+	 * @return
+	 */
+	public OnlineCourseResultInfo findOnlineWebCourseByCourseSell(Long courseId);
+	
+	/**
+	 * @Title: saveOnlineCourseComment 
+	 * @Description: (保存线上课程评论) 
+	 * @param comment
+	 * @return
+	 */
+	public int saveOnlineCourseComment(OnlineCourseComment comment);
+	
+	/**
+	 * @Title: findOnlineCourseCommentList 
+	 * @Description: (查询课程评论列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<OnlineCourseCommentInfo> findOnlineCourseCommentList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findOnlineCourseCommentCount 
+	 * @Description: (查询课程评论列表数量) 
+	 * @param params
+	 * @return
+	 */
+	public int findOnlineCourseCommentCount(Map<String,Object> params);
+	
+	/**
+	 * @Title: findOnlineCourseCount 
+	 * @Description: (查询线上课程数量) 
+	 * @return
+	 */
+	public Long findOnlineCourseCount();
+	
+	/**
+	 * @Title: findOnlineCourseContent 
+	 * @Description: (查询线上课程详情) 
+	 * @param id
+	 * @return
+	 */
+	public String findOnlineCourseContent(Long id);
+	public String findOnlineCoursePPT(Long id);
+	public String findOnlineCourseBack(Long id);
+	
+	/**
+	 * @Title: findOnlineJoinMember 
+	 * @Description: (查询线上课程在线用户) 
+	 * @param map
+	 * @return
+	 */
+	public List<UserSimpleInfo> findOnlineJoinMember(Map<String,Object> map);
+	public List<UserSimpleInfo> findOnlineJoinMemberLimit10(Long courseId);
+	
+	/**
+	 * @Title: findOnlineJoinNumber 
+	 * @Description: (查询线上课程在线人数) 
+	 * @param courseId
+	 * @return
+	 */
+	public Long findOnlineJoinNumber(Long courseId);
+	
+	/**
+	 * @Title: updateAppCourseClickNumber 
+	 * @Description: (修改客户端课程点击数量) 
+	 * @param courseId
+	 * @return
+	 */
+	public int updateAppCourseClickNumber(Long courseId);
+	
+	/**
+	 * @Title: findPlayCourseCount 
+	 * @Description: (查询线上直播课程数量) 
+	 * @return
+	 */
+	public Long findPlayCourseCount();
+	
+	//---------------------------------------------------------------------------------------------
+	//以下为后台使用
+	/**
+	 * @Title: findCourseById 
+	 * @Description: (根据id查询课程基本信息) 
+	 * @param id
+	 * @return
+	 */
+	public Course findCourseById(Long id);
+	
+	/**
+	 * @Title: updateCourse 
+	 * @Description: (修改课程信息) 
+	 * @param course
+	 * @return
+	 */
+	public int updateCourse(Course course);
+	
+	/**
+	 * @Title: findCourseInfoList 
+	 * @Description: (查询课程信息列表) 
+	 * @param params
+	 * @return
+	 */
+	public List<CourseListInfo> findCourseInfoList(Map<String,Object> params);
+	
+	/**
+	 * @Title: findCourseInfoListCount 
+	 * @Description: (查询课程信息条数) 
+	 * @param params
+	 * @return
+	 */
+	public int findCourseInfoListCount(Map<String,Object> params);
+	
+	/**
+	 * @Title: updateCourseStatus 
+	 * @Description: (更新课程状态) 
+	 * @param id
+	 * @return
+	 */
+	public int updateCourseStatus(Long id);
+	
+	/**
+	 * @Title: updateOfflineCourseStatus 
+	 * @Description: (更新线下课程状态) 
+	 * @param id
+	 * @return
+	 */
+	public int updateOfflineCourseStatus(Long id);
+	
+	/**
+	 * @Title: updateOnlineCourseStatus 
+	 * @Description: (更新线上课程状态) 
+	 * @param id
+	 * @return
+	 */
+	public int updateOnlineCourseStatus(Long id);
+	
+	/**
+	 * @Title: saveOfflineCourseImage 
+	 * @Description: (保存线下课程图片) 
+	 * @param image
+	 * @return
+	 */
+	public int saveOfflineCourseImage(OfflineCourseImage image);
+	
+	/**
+	 * @Title: findOfflineCourseImage 
+	 * @Description: (查询线下课程图片) 
+	 * @param obj
+	 * @return
+	 */
+	public List<CourseImageListInfo> findOfflineCourseImage(Map<String,Object> obj);
+	
+	/**
+	 * @Title: findOfflineCourseImageCount 
+	 * @Description: (查询线下课程图片总数) 
+	 * @param map
+	 * @return
+	 */
+	public int findOfflineCourseImageCount(Map<String,Object> map);
+	
+	/**
+	 * @Title: updateCourseImage 
+	 * @Description: (修改课程图片) 
+	 * @param image
+	 * @return
+	 */
+	public int updateCourseImage(OfflineCourseImage image);
+	
+	/**
+	 * @Title: findOfflineCourseImageById 
+	 * @Description: (根据ID查询课程图片) 
+	 * @param id
+	 * @return
+	 */
+	public OfflineCourseImage findOfflineCourseImageById(Long id);
+	
+	public Long findBuyCourseCount(Map<String,Object> map);
+	
+	public Course findCourseIsSell(Long id);
+	
+	//---------------------------------------------------------------------------------------------
+	/**
+	 * @Title: findOfflineCourseListForSign 
+	 * @Description: (查询线下课程列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineCourseListInfo> findOfflineCourseListForSign(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineJoinForSigned 
+	 * @Description: (根据手机号码后四位查询线下课程报名用户列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineJoinMember> findOfflineJoinForSigned(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineJoinForSignedAll 
+	 * @Description: (根据手机号码查询线下课程报名用户列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineJoinMember> findOfflineJoinForSignedAll(Map<String,Object> map);
+	
+	/**
+	 * @Title: saveOfflineSignedInfo 
+	 * @Description: (保存线下课程签到信息) 
+	 * @param favour
+	 * @return
+	 */
+	public int saveOfflineSignedInfo(OfflineSigned signed);
+	
+	/**
+	 * @Title: findOfflineJoinMobileForSigned 
+	 * @Description: (根据手机号码查询线下课程报名用户手机号码：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public String findOfflineJoinMobileForSigned(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineJoinNameForSigned 
+	 * @Description: (根据手机号码查询线下课程报名用户姓名：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public String findOfflineJoinNameForSigned(Map<String,Object> map);
+	/**
+	 * @Title: findOfflineJoinNameForSignedAll 
+	 * @Description: (根据手机号码查询线下课程报名用户姓名：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public String findOfflineJoinNameForSignedAll(Map<String,Object> map);
+	
+	/**
+	 * @Title: OfflineSigned 
+	 * @Description: (根据手机号码查询线课程签到信息列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public String OfflineSigned(Map<String,Object> map);
+	
+	/**
+	 * @Title: OfflineSignedAll 
+	 * @Description: (根据手机号码查询线课程签到信息列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public String OfflineSignedAll(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineSignedJoinListShang 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineSigned> findOfflineSignedJoinListShang(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineSignedJoinListXia 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineSigned> findOfflineSignedJoinListXia(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineSignedMobileListShang 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List findOfflineSignedMobileListShang(Map<String,Object> map);
+	/**
+	 * @Title: findOfflineSignedMobileListXia 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineSigned> findOfflineSignedMobileListXia(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineSignedMobileListXia 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineJoinMember> findOfflineNotSignedMobileListShang(Map<String,Object> map);
+	/**
+	 * @Title: findOfflineSignedMobileListXia 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineJoinMember> findOfflineNotSignedMobileListXia(Map<String,Object> map);
+	
+	/**
+	 * @Title: findOfflineSignedMobileListXia 
+	 * @Description: (查询线下课程签到列表：检票用) 
+	 * @param map
+	 * @return
+	 */
+	public List<OfflineJoinMember> findOfflineNotSignedList(Map<String,Object> map);
+}

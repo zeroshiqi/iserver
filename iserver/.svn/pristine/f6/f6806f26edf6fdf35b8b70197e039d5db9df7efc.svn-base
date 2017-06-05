@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.ArticleDao">
+	
+	<!-- 修改文章点击数 -->
+	<update id="updateArticleClickNum" parameterType="java.lang.Long">
+		update t_article set click_number = click_number + 1 where status = 1 and id = #{id}
+	</update>
+	
+	<!-- 查询文章评分 -->
+	<select id="findArticleStar" parameterType="java.lang.Long" resultType="cn.ichazuo.model.table.Article">
+		select id,version,star from t_article where id = #{id}
+	</select>
+	
+	<!-- 修改文章评分 -->
+	<update id="updateArticleStar" parameterType="cn.ichazuo.model.table.Article">
+		update t_article set version = version + 1,update_at = now(),star = #{star} where id = #{id} and version = #{version}
+	</update>
+	
+	<!-- 查询文章列表 -->
+	<select id="findArticleList" parameterType="java.util.Map" resultType="cn.ichazuo.model.app.ArticleListInfo">
+		select a.id,a.title,a.cover,a.`level`,a.click_number as clickNumber,a.tag,a.create_at as createAt 
+		from t_article a left join s_dict_item i on a.type = i.id 
+		where a.status = 1 and a.show_type = 0 
+		<if test="type != null">
+			and i.id = #{type}
+		</if>
+		limit #{page},#{pageCount}
+	</select>
+	
+	<!-- 查询文章列表总数 -->
+	<select id="findArticleListCount" parameterType="java.util.Map" resultType="java.lang.Long">
+		select count(*)  
+		from t_article a left join s_dict_item i on a.type = i.id 
+		where a.status = 1 
+		<if test="type != null">
+			and i.id = #{type}
+		</if>
+	</select>
+	
+	<!-- 查询文章信息 -->
+	<select id="findArticleInfo" parameterType="java.lang.Long" resultType="cn.ichazuo.model.app.ArticleInfo">
+		select t.id,t.title,t.content,t.url,i.`value` as type,t.star,t.create_at as createAt,t.tag from t_article t left join s_dict_item i on i.id = t.type where t.status = 1 and t.id = #{id}
+	</select>
+	
+	<!-- 查询文章评论 -->
+	<select id="findArticleCommentInfo" parameterType="java.lang.Long" resultType="cn.ichazuo.model.app.ArticleCommentInfo">
+		select c.content,m.id as memberId,c.id,m.avatar,m.nick_name as nickName,c.create_at as createAt  
+		from t_article_comment c left join t_member m on m.id = c.member_id 
+		where c.`status` = 1 and c.article_id = #{id} and c.content != '' and m.status = 1
+	</select>
+	
+	<!-- 查询评论点赞数量 -->
+	<select id="findArticleCommentFavourCount" parameterType="java.lang.Long" resultType="java.lang.Long">
+		select count(*) from t_article_comment_favour f where f.`status` = 1 and f.comment_id = #{id}
+	</select>
+	
+	<!-- 查询文章评论点赞 -->
+	<select id="findArticleCommentFavour" parameterType="java.util.Map" resultType="cn.ichazuo.model.table.ArticleCommentFavour">
+		select id,comment_id as commentId,member_id as memberId,`status`,version  
+		from t_article_comment_favour where comment_id = #{commentId} and member_id = #{memberId}
+	</select>
+	
+	<!-- 保存文章评论 -->
+	<insert id="saveArticleComment" parameterType="cn.ichazuo.model.table.ArticleComment">
+		insert into t_article_comment(article_id,member_id,content,create_at,star)
+		values(#{articleId},#{memberId},#{content},now(),#{star})
+	</insert>
+	
+	<!-- 保存评论点赞 -->
+	<insert id="saveArticleCommentFavour" parameterType="cn.ichazuo.model.table.ArticleCommentFavour">
+		insert into t_article_comment_favour(comment_id,member_id,create_at)
+		values(#{commentId},#{memberId},now())
+	</insert>
+	
+	<!-- 修改评论点赞状态 -->
+	<update id="updateArticleCommentFavour" parameterType="cn.ichazuo.model.table.ArticleCommentFavour">
+		update t_article_comment_favour set status = #{status},version = version + 1,update_at = now() where id = #{id} and version = #{version}
+	</update>
+	
+	<!-- 查询用户当天评论数量 -->
+	<select id="findMemberArticleCommnetCount" parameterType="java.util.Map" resultType="java.lang.Long">
+		select count(*) from t_article_comment where article_id = #{articleId} and member_id = #{memberId} and status = 1
+		and TO_DAYS(create_at) = TO_DAYS(NOW())
+	</select>
+	
+	<!-- 查询文章评论人数 -->
+	<select id="findArticleCommentCount" parameterType="java.lang.Long" resultType="java.lang.Long">
+		select count(*) from t_article_comment where article_id = #{id} and status = 1
+	</select>
+	
+</mapper>

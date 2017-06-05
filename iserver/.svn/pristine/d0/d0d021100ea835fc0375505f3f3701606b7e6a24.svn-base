@@ -1,0 +1,448 @@
+package cn.ichazuo.controller.admin;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.component.UploadFile;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Image;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.model.admin.CourseListInfo;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.DictItem;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.model.table.OfflineCourseImage;
+import cn.ichazuo.model.table.OnlineCourse;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.DictService;
+import cn.ichazuo.service.MemberService;
+
+/**
+ * @ClassName: CourseController 
+ * @Description: (课程controller) 
+ * @author ZhaoXu
+ * @date 2015年7月22日 下午12:43:34 
+ * @version V1.0
+ */
+@RequestMapping("/admin")
+@Controller("admin.courseController")
+public class CourseController extends BaseController{
+	@Autowired
+	private CourseService courseService;
+	@Autowired
+	private MemberService memberService;
+	@Autowired
+	private DictService dictService;
+	@Autowired
+	private UploadFile uploadFile;
+	
+	/**
+	 * @Title: offline 
+	 * @Description: (跳转课程管理) 
+	 * @return
+	 */
+	@RequestMapping("/offline")
+	public String offline(){
+		return "/course/offline";
+	}
+	
+	/**
+	 * @Title: online 
+	 * @Description: (跳转课程管理) 
+	 * @return
+	 */
+	@RequestMapping("/online")
+	public String online(){
+		return "/course/online";
+	}
+	
+	/**
+	 * @Title: image 
+	 * @Description: (跳转课程图片管理) 
+	 * @return
+	 */
+	@RequestMapping("/courseImage")
+	public String image(Long courseId,HttpServletRequest request){
+		request.setAttribute("courseId", courseId);
+		return "/course/image";
+	}
+	
+	/**
+	 * @Title: findCourseList 
+	 * @Description: (查询课程列表) 
+	 * @param type
+	 * @param page
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/findCourseList")
+	public JSONObject findCourseList(Integer type,Page page){
+		JSONObject obj = new JSONObject();
+		if(type == null){
+			return error("参数缺失");
+		}
+		try{
+			Params params = new Params(page.getNowPage(),page.getNumber());
+			params.putData("type", type);
+			obj.put("page", page.getNowPage());
+			
+			List<CourseListInfo> infoList = courseService.findCourseInfoList(params);
+			infoList.forEach(info->{
+				if(type == 0){
+					DictItem item = dictService.findDictItemById(info.getOfflineTypeId());
+					info.setTypeStr(item == null ? "" : item.getValue());
+					
+					StringBuffer names = new StringBuffer();
+					if(!StringUtils.isNullOrEmpty(info.getTeacherId())){
+						List<Member> memberList = new ArrayList<>();
+						for(String str : info.getTeacherId().split(",")){
+							if(StringUtils.isNullOrEmpty(str)){
+								continue;
+							}
+							Member member = memberService.findMemberById(Long.valueOf(str));
+							if(member == null){
+								continue;
+							}
+							if(memberList.contains(member)){
+								continue;
+							}
+							memberList.add(member);
+							names.append(member.getNickName()).append(",");
+						}
+						memberList.clear();
+						memberList = null;
+						info.setTeacherNames(StringUtils.removeEndChar(names.toString(), ','));
+					}
+				}
+			});
+			obj.put("rows", infoList);
+			obj.put("total", courseService.fincCourseInfoListCount(params));
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		StringUtils.writeJSONString(obj);
+		return obj;
+	}
+	
+	/**
+	 * @Title: saveCourseInfo 
+	 * @Description: (保存课程信息) 
+	 * @param request
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/saveCourseInfo")
+	public JSONObject saveCourseInfo(HttpServletRequest request){
+		try{
+			if(StringUtils.isNullOrEmpty(request.getParameter("courseName"))){
+				return warning("请输入课程名称!");
+			}
+			if(StringUtils.isNullOrEmpty(request.getParameter("courseType"))){
+				return warning("请选择课程类型!");
+			}
+			if(StringUtils.isNullOrEmpty(request.getParameter("beginTimeStr"))){
+				return warning("请选择课程开始时间!");
+			}
+			Long courseId = StringUtils.isNullOrEmpty(request.getParameter("courseId")) ? 0L : Long.valueOf(request.getParameter("courseId"));
+			//头像上传
+			MultipartFile cover = null;
+			MultipartFile avatar = null;
+			try{
+				MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
+				cover = multipartRequest.getFile("coverImg");
+				avatar = multipartRequest.getFile("avatarImg");
+			}catch(Exception e){
+				if(StringUtils.isNullOrEmpty(request.getParameter("courseId"))){
+					return warning("请选择图片");
+				}
+			}
+			Course course = null;
+			if(NumberUtils.isNullOrZero(courseId)){
+				course = new Course();
+			}else{
+				course = courseService.findCourseById(courseId);
+			}
+			Integer type = Integer.parseInt(request.getParameter("courseType"));
+			//设置大图
+			if(cover != null){
+				course.setCover(uploadFile.upload(cover, "course"));
+			}
+			//设置小图
+			if(avatar != null){
+				course.setAvatar(uploadFile.upload(avatar, "course"));
+			}
+			course.setBeginTime(DateUtils.parseDate(request.getParameter("beginTimeStr"), DateUtils.DATE_FORMAT_NORMAL));
+			course.setCourseName(request.getParameter("courseName"));
+			course.setType(type);	//设置类型
+			
+			if(type == 0){
+				// 线下课程
+				OfflineCourse offline = null;
+				if(NumberUtils.isNullOrZero(courseId)){
+					offline = new OfflineCourse();
+				}else{
+					offline = courseService.findOfflineCourseByCourseId(courseId);
+				}
+				//验证数据
+				if(StringUtils.isNullOrEmpty(request.getParameter("studentNum"))){
+					return warning("请输入招生数量!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("price"))){
+					return warning("请输入课程价格!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("cityId"))){
+					return warning("请选择城市!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("teacherId"))){
+					return warning("请选择讲师!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("address"))){
+					return warning("请填写地址!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("lon"))){
+					return warning("请填写经度!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("lat"))){
+					return warning("请填写纬度!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("offlineType"))){
+					return warning("请选择所属类型!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("courseTime"))){
+					return warning("请输入上课时间!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("courseContent"))){
+					return warning("请输入课程简介!");
+				}
+				offline.setPrice(Double.valueOf(request.getParameter("price")));
+				offline.setStudentNum(Integer.parseInt(request.getParameter("studentNum")));
+				offline.setCityId(Long.valueOf(request.getParameter("cityId")));
+				offline.setTeacherId(request.getParameter("teacherId"));
+				offline.setAddress(request.getParameter("address"));
+				offline.setLon(Double.valueOf(request.getParameter("lon")));
+				offline.setLat(Double.valueOf(request.getParameter("lat")));
+				offline.setOfflineTypeId(Long.valueOf(request.getParameter("offlineType")));
+				offline.setCourseTime(request.getParameter("courseTime"));
+				offline.setCourseContent(request.getParameter("courseContent"));
+				offline.setCommentCount(0L);
+				offline.setFavourCount(0L);
+				offline.setStar(0d);
+				if(courseService.saveOfflineCourse(course, offline)){
+					return ok("操作成功");
+				}
+			}else{
+				// 线上课程
+				OnlineCourse online = null;
+				if(NumberUtils.isNullOrZero(courseId)){
+					online = new OnlineCourse();
+				}else{
+					online = courseService.findOnlineCourseByCourseId(courseId);
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("playBeginTimeStr"))){
+					return warning("请选择直播开始时间!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("playEndTimeStr"))){
+					return warning("请选择直播结束时间!");
+				}
+				if(StringUtils.isNullOrEmpty(request.getParameter("addressId"))){
+					return warning("请选择直播地址");
+				}
+				online.setPlayBeginTime(DateUtils.parseDate(request.getParameter("playBeginTimeStr")));
+				online.setPlayEndTime(DateUtils.parseDate(request.getParameter("playEndTimeStr")));
+				online.setIsVideo(0);//设置默认   该字段无效
+				online.setPlayAddressId(Long.valueOf(request.getParameter("addressId")));
+				online.setJoinNumber(0L);
+				if(courseService.saveOnlineCourse(course, online)){
+					return ok("操作成功");
+				}
+			}
+			
+			return error("操作失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(ADMIN_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: deleteCourse 
+	 * @Description: (删除课程) 
+	 * @param id
+	 * @param type
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/deleteCourse")
+	public JSONObject deleteCourse(Long id,Integer type){
+		try{
+			if(NumberUtils.isNullOrZero(id) || type == null){
+				return error("参数缺失");
+			}
+			
+			if(courseService.deleteCourse(id, type)){
+				return ok("删除成功");
+			}
+			return error("删除失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(ADMIN_SYSTEM_ERROR);
+		}
+	}
+	
+	
+	/**
+	 * @Title: saveCourseFile 
+	 * @Description: (保存课程文件) 
+	 * @param request
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/saveCourseFile")
+	public JSONObject saveCourseFile(HttpServletRequest request){
+		try{
+			if(StringUtils.isNullOrEmpty(request.getParameter("courseId"))){
+				return error("参数缺失");
+			}
+			if(StringUtils.isNullOrEmpty(request.getParameter("timeLength"))){
+				return error("参数缺失");
+			}
+			Long courseId = Long.valueOf(request.getParameter("courseId"));
+			OnlineCourse online = courseService.findOnlineCourseByCourseId(courseId);
+			if(online == null){
+				return error("参数错误");
+			}
+			//上传
+			MultipartFile file = null;
+			try{
+				MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
+				file = multipartRequest.getFile("videoFile");
+			}catch(Exception e){
+				return warning("请选择上传文件");
+			}
+			online.setPlayAddress(uploadFile.upload(file, "courseFile"));
+			online.setTimeLength(Integer.valueOf(request.getParameter("timeLength")));
+			if(courseService.updateOnlineCourseInfo(online)){
+				return ok("上传成功!");
+			}
+			return error("上传失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: findCourseImage 
+	 * @Description: (查询课程图片列表) 
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/findCourseImage")
+	public JSONObject findCourseImage(Long courseId,Page page){
+		if(NumberUtils.isNullOrZero(courseId)){
+			return error("参数缺失");
+		}
+		JSONObject obj = new JSONObject();
+		try{
+			Params params = new Params(page.getNowPage(),page.getNumber());
+			params.putData("courseId", courseId);
+			
+			obj.put("page", page.getNowPage());
+			obj.put("rows", courseService.findOfflineCourseImage(params));
+			obj.put("total", courseService.findOfflineCourseImageCount(params));
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		super.writeJSONString(obj);
+		return obj;
+	}
+	
+	/**
+	 * @Title: saveCourseImage 
+	 * @Description: (保存课程图片) 
+	 * @param image
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/saveCourseImage")
+	public JSONObject saveCourseImage(HttpServletRequest request,Long courseId,Long id,Image img){
+		try{
+			if(NumberUtils.isNullOrZero(courseId)){
+				return error("参数缺失");
+			}
+			//上传
+			MultipartFile imageFile = null;
+			try{
+				MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
+				imageFile = multipartRequest.getFile("imageFile");
+			}catch(Exception e){
+				return warning("请选择图片");
+			}
+			if(NumberUtils.isNullOrZero(id)){
+				OfflineCourseImage image = new OfflineCourseImage();
+				image.setCourseId(courseId);
+				image.setImageUrl(uploadFile.upload(imageFile, "offlineCourse"));
+				
+				if(courseService.saveOfflineCourseImage(image)){
+					return ok("保存成功");
+				}
+			}else{
+				OfflineCourseImage image = courseService.findOfflineCourseImageById(id);
+				image.setImageUrl(uploadFile.upload(imageFile, "offlineCourse"));
+				
+				if(courseService.updateCourseImage(image)){
+					return ok("保存成功");
+				}
+			}
+			
+			return error("保存失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: deleteImage 
+	 * @Description: (删除图片) 
+	 * @param id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/json/deleteImage")
+	public JSONObject deleteImage(Long id){
+		try{
+			if(NumberUtils.isNullOrZero(id)){
+				return error("参数缺失");
+			}
+			OfflineCourseImage image = courseService.findOfflineCourseImageById(id);
+			if(image == null){
+				return error("参数错误");
+			}
+			image.setStatus(0);
+			if(courseService.updateCourseImage(image)){
+				return ok("删除成功");
+			}
+			return error("删除失败");
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(ADMIN_SYSTEM_ERROR);
+		}
+	}
+}

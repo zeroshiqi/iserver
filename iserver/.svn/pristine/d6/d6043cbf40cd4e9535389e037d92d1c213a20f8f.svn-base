@@ -1,0 +1,1068 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.CourseDao">
+	<!-- 查询线下课程列表 -->
+	<select id="findOfflineCourseListV2" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineCourseListInfo">
+		select o.newtype as
+		newType,o.isnew,c.id,c.cover,c.avatar,c.course_name as
+		courseName,o.favour_count as userCount,c.begin_time as
+		beginTime,o.teacher_id as teacherIds,
+		o.student_num as
+		studentNum,o.course_time as courseTime,y.city_name as cityName
+		,o.show_address as showAddress,o.price
+		from t_course_offline o left
+		join t_course c on c.id = o.course_id
+		left join t_city y on y.id = o.city_id
+		where c.status = 1 and o.newtype = #{newtype}
+		<if test="from == 1">
+			and c.web_hidden = 0
+		</if>
+		<if test="from == 0">
+			and c.is_hidden = 0
+		</if>
+		<if test="courseType != null">
+			and o.offline_type_id = #{courseType}
+		</if>
+		<if test="orderBy == 1">
+			<![CDATA[
+ 			and c.begin_time > #{time} order by  (o.student_num - (select count(*) from t_course_offline_join ff left join t_member m on m.id = ff.member_id where ff.course_id = o.course_id and ff.status = 1 and m.status = 1) > 0) asc,c.begin_time asc  
+ 			]]>
+		</if>
+		<!-- <if test="orderBy == 1"> -->
+		<!-- <![CDATA[ -->
+		<!-- and c.begin_time > #{time} order by c.begin_time asc -->
+		<!-- ]]> -->
+		<!-- </if> -->
+		<if test="orderBy == 2">
+		<![CDATA[
+			and c.begin_time < #{time} order by c.begin_time asc,o.id asc
+			]]>
+		</if>
+		<if test="type != null">
+			order by c.begin_time asc
+		</if>
+		<if test="number == null">
+			limit #{page},#{pageCount}
+		</if>
+		<if test="number != null">
+			limit #{number}
+		</if>
+	</select>
+
+	<!-- 查询线下课程总数 -->
+	<select id="findOfflineCourseListCountV2" parameterType="java.util.Map"
+		resultType="java.lang.Long">
+		select count(*) from t_course_offline o left join t_course c on c.id =
+		o.course_id
+		left join t_city y on y.id = o.city_id
+		where c.status = 1 and c.is_hidden = 0
+		<if test="courseType != null">
+			and o.offline_type_id = #{courseType}
+		</if>
+	</select>
+
+	<!-- 保存课程 -->
+	<insert id="saveCourse" parameterType="cn.ichazuo.model.table.Course"
+		useGeneratedKeys="true" keyProperty="id">
+		insert into
+		t_course(course_name,type,begin_time,cover,avatar,create_at)
+		values(#{courseName},#{type},#{beginTime},#{cover},#{avatar},now())
+	</insert>
+
+	<!-- 保存线上课程 -->
+	<insert id="saveOnlineCourse" parameterType="cn.ichazuo.model.table.OnlineCourse">
+		insert into
+		t_course_online(course_id,play_begin_time,play_end_time,play_address_id,join_number,is_video,create_at)
+		values(#{courseId},#{playBeginTime},#{playEndTime},#{playAddressId},#{joinNumber},#{isVideo},now())
+	</insert>
+
+	<!-- 保存线下课程信息 -->
+	<insert id="saveOfflineCourse" parameterType="cn.ichazuo.model.table.OfflineCourse">
+		insert into
+		t_course_offline(course_id,offline_type_id,course_content,price,course_time,city_id,student_num,address,lon,lat,comment_count,star,favour_count,create_at,teacher_id)
+		values(#{courseId},#{offlineTypeId},#{courseContent},#{price},#{courseTime},#{cityId},#{studentNum},#{address},#{lon},#{lat},#{commentCount},#{star},#{favourCount},now(),#{teacherId})
+	</insert>
+
+	<!-- 查询我点赞线下课程数量 -->
+	<select id="findMyFavourCourseCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline_favour o left join
+		t_course c on c.id = o.course_id where o.status = 1 and c.is_hidden =
+		0 and o.member_id = #{memberId}
+	</select>
+
+	<!-- 查询我参加的线下课程数量 -->
+	<select id="findMyJoinCourseCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline_join o left join
+		t_course c on c.id = o.course_id where o.status = 1 and c.is_hidden =
+		0 and o.member_id = #{memberId}
+	</select>
+
+	<!-- 查询我点赞的线下课程列表 -->
+	<select id="findMyFavourCourseList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineCourseListInfo">
+		select c.id,c.cover,c.avatar,c.course_name as
+		courseName,o.favour_count as userCount,o.student_num as studentNum,
+		o.course_time as courseTime,y.city_name as cityName
+		from t_course_offline_favour f
+		left join t_course_offline o on f.course_id = o.course_id
+		left join t_city y on y.id = o.city_id
+		left join t_course c on c.id = o.course_id
+		where f.status = 1 and c.status
+		= 1 and f.member_id = #{memberId} and c.is_hidden = 0
+		limit
+		#{page},#{pageCount}
+	</select>
+
+	<!-- 查询线下课程点赞人数 -->
+	<select id="findOfflineCourseFavourCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline_favour f left join
+		t_member m on m.id = f.member_id where f.course_id = #{courseId} and
+		f.`status` = 1 and m.status = 1
+	</select>
+
+	<!-- 查询我参加的线下课程列表 -->
+	<select id="findMyJoinCourseList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineCourseListInfo">
+		select c.id,c.cover,c.avatar,c.course_name as
+		courseName,o.favour_count as userCount,o.student_num as studentNum,
+		o.course_time as courseTime,y.city_name as cityName
+		from t_course_offline_join f
+		left join t_course_offline o on f.course_id = o.course_id
+		left join t_city y on y.id = o.city_id
+		left join t_course c on c.id = o.course_id
+		where f.status = 1 and c.status
+		= 1 and f.member_id = #{memberId} and c.is_hidden = 0
+		order by
+		f.create_at,f.id
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询线下课程报名人数 -->
+	<select id="findCourseJoinNumber" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline_join c left join
+		t_member m on m.id = c.member_id where c.course_id = #{courseId} and
+		c.status = 1 and m.status = 1
+	</select>
+
+	<!-- 查询Web线下课程报名人数 -->
+	<select id="findCourseWebJoinNumber" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_web_order_user u left join
+		t_course_web_order o on o.id = u.order_id where u.member_id = 0 and
+		o.`status` = 1 and u.`status` = 1 and o.course_id = #{courseId}
+	</select>
+
+	<!-- 保存线下课程报名信息 -->
+	<insert id="saveCourseJoin" parameterType="cn.ichazuo.model.table.CourseOfflineJoin">
+		insert into
+		t_course_offline_join(course_id,member_id,create_at,type,from1,order_id)
+		values(#{courseId},#{memberId},now(),#{type},#{from},#{orderId})
+	</insert>
+
+	<!-- 保存线下课程点赞信息 -->
+	<insert id="saveCourseFavour" parameterType="cn.ichazuo.model.table.OfflineCourseFavour">
+		insert into
+		t_course_offline_favour(course_id,member_id,create_at)
+		values
+		(#{courseId},#{memberId},now())
+	</insert>
+
+	<!-- 根据课程ID查询线下课程信息 -->
+	<select id="findOfflineCourseByCourseId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.OfflineCourse">
+		select id,course_id as courseId,offline_type_id as
+		offlineTypeId,course_content as courseContent,discount,
+		price,lon,lat,course_time as courseTime,city_id as
+		cityId,comment_count as commentCount,join_count as joinCount,
+		student_num as studentNum,address,star,favour_count as
+		favourCount,version
+		from t_course_offline where course_id = #{courseId} and status = 1
+	</select>
+
+	<!-- 查询线下课程点赞信息 -->
+	<select id="findCourseFavour" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.OfflineCourseFavour">
+		select id,course_id as courseId,member_id as
+		memberId,status,version
+		from t_course_offline_favour where course_id = #{courseId} and member_id =
+		#{memberId}
+	</select>
+
+	<!-- 查询线下课程报名信息 -->
+	<select id="findCourseJoin" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.CourseOfflineJoin">
+		select id,course_id as courseId,member_id as
+		memberId,status,version
+		from t_course_offline_join where course_id = #{courseId} and member_id =
+		#{memberId} and status = 1
+	</select>
+
+	<!-- 支付成功查询信息,发送短信 -->
+	<select id="findOfflineMsgInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.admin.OfflineMsgInfo">
+		select i.`value` as type,c.begin_time as beginTime,c.end_time as
+		endTime,y.city_name as cityName,c.course_name as
+		courseName,f.offline_type_id as typeId,y.id as cityId,f.address as
+		address from t_course c left join t_course_offline f on f.course_id =
+		c.id
+		left join s_dict_item i on i.id = f.offline_type_id left join t_city y on
+		y.id = f.city_id where c.type = 0 and c.id = #{id}
+	</select>
+	<!-- 修改线下课程信息 -->
+	<update id="updateOfflineCourse" parameterType="cn.ichazuo.model.table.OfflineCourse">
+		update t_course_offline
+		<set>
+			<if test="offlineTypeId != null">
+				offline_type_id = #{offlineTypeId},
+			</if>
+			<if test="courseContent != null">
+				course_content = #{courseContent},
+			</if>
+			<if test="price != null">
+				price = #{price},
+			</if>
+			<if test="courseTime != null">
+				course_time = #{courseTime},
+			</if>
+			<if test="cityId != null">
+				city_id = #{cityId},
+			</if>
+			<if test="studentNum != null">
+				student_num = #{studentNum},
+			</if>
+			<if test="address != null">
+				address = #{address},
+			</if>
+			<if test="lon != null">
+				lon = #{lon},
+			</if>
+			<if test="lat != null">
+				lat = #{lat},
+			</if>
+			<if test="commentCount != null">
+				comment_count = #{commentCount},
+			</if>
+			<if test="star != null">
+				star = #{star},
+			</if>
+			<if test="teacherId != null">
+				teacher_id = #{teacherId},
+			</if>
+			<if test="favourCount != null">
+				favour_count = #{favourCount},
+			</if>
+			update_at = now(), version = version + 1
+		</set>
+		where 1=1 and id = #{id} and version = #{version}
+	</update>
+
+	<!-- 修改信息课程点赞状态 -->
+	<update id="updateCourseFavourStatus" parameterType="cn.ichazuo.model.table.OfflineCourseFavour">
+		update
+		t_course_offline_favour set status = #{status},version = version + 1,
+		update_at = now() where id = #{id} and version = #{version}
+	</update>
+
+	<!-- 查询课程点赞用户信息 -->
+	<select id="findCourseFavourUserInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name
+		as companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_course_offline_favour f left join t_member m on m.id = f.member_id
+		inner join t_member_info i on i.member_id = m.id
+		where f.course_id = #{courseId} and f.status = 1 and i.status = 1 and
+		m.status = 1
+		order by f.update_at desc,f.id desc
+		limit 10
+	</select>
+
+
+
+	<!-- 查询线下课程列表中得一条数据 -->
+	<select id="findOfflineCourseListInfoByCourseId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OfflineCourseListInfo">
+		select o.newtype as newType,
+		c.id,c.cover,c.avatar,c.course_name as courseName,o.favour_count as
+		userCount,
+		o.student_num as studentNum,o.course_time as
+		courseTime,y.city_name as cityName
+		from t_course_offline o left join t_course c on c.id = o.course_id
+		left join t_city y on y.id = o.city_id
+		where c.status = 1 and c.id = #{courseId}
+	</select>
+
+	<!-- 查询线下课程全部信息 -->
+	<select id="findOfflineCourseAllInfo" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OfflineCourseInfo">
+		select o.newtype as newType,c.id,c.course_name as
+		courseName,c.cover as cover,c.avatar as avatar,y.city_name as
+		cityName,o.price,
+		o.course_time as courseTime,o.student_num as
+		studentNum,o.address,o.lat,o.lon,o.comment_count as commentCount,
+		o.star,o.favour_count as favourCount,y.simple_name as
+		simpleName,c.begin_time as beginTime,o.teacher_id as ids
+		from t_course_offline o
+		left join t_course c on o.course_id = c.id
+		left join t_city y on o.city_id = y.id
+		where c.id = #{courseId}
+	</select>
+
+	<!-- 查询课程图片 -->
+	<select id="findOfflineCourseImages" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.OfflineCourseImage">
+		select id,course_id as courseId,image_url as
+		imageUrl,`status`,version
+		from t_course_offline_image where 1=1 and status = 1 and course_id =
+		#{courseId}
+	</select>
+
+	<!-- 查询课程参加用户列表 -->
+	<select id="findCourseJoinUserList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name
+		as companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_course_offline_join f left join t_member m on m.id = f.member_id
+		left join t_member_info i on i.member_id = m.id
+		where f.course_id = #{courseId} and f.status = 1 and m.status = 1
+		order by
+		f.create_at desc,f.id desc
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 根据课程ID查询评论列表 -->
+	<select id="findCourseCommentByCourseId" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineCourseCommentInfo">
+		select c.id,c.member_id as
+		userId,c.anonymous,c.content,c.nick_name as
+		nickname,if(c.anonymous=1,'',m.avatar) as avatar,c.create_at as
+		createAt
+		from t_course_offline_comment c
+		left join t_member m on m.id = c.member_id
+		where c.status = 1 and m.status = 1 and c.course_id = #{courseId} and
+		c.content is not null
+		order by c.create_at desc
+	</select>
+
+	<!-- 根据ID查询课程信息 -->
+	<select id="findCourseCommentById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.OfflineCourseComment">
+		select id,course_id as courseId,member_id as
+		memberId,content,star,anonymous,nick_name as nickName,version,`status`
+		from t_course_offline_comment where id = #{commentId} and status = 1
+	</select>
+
+	<!-- 查询课程评论点赞信息 -->
+	<select id="findCourseCommentFavour" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.OfflineCourseCommentFavour">
+		select id,comment_id as commentId,member_id as
+		memberId,`status`,version
+		from t_course_offline_comment_favour where 1=1 and comment_id =
+		#{commentId} and member_id = #{memberId}
+	</select>
+
+	<!-- 保存课程评论点赞信息 -->
+	<insert id="saveCourseCommentFavour" parameterType="cn.ichazuo.model.table.OfflineCourseCommentFavour">
+		insert into
+		t_course_offline_comment_favour(comment_id,member_id,create_at)
+		values(#{commentId},#{memberId},now())
+	</insert>
+
+	<!-- 修改课程评论点赞状态 -->
+	<update id="updateCourseCommentFavourStatus" parameterType="cn.ichazuo.model.table.OfflineCourseCommentFavour">
+		update t_course_offline_comment_favour set status = #{status},version
+		= version + 1,update_at = now() where 1=1 and id = #{id}
+	</update>
+
+	<!-- 查询课程点赞信息 -->
+	<select id="findCourseCommentFavourCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline_comment_favour where
+		comment_id = #{commentId}
+	</select>
+
+	<!-- 保存课程评论 -->
+	<insert id="saveCourseComment" parameterType="cn.ichazuo.model.table.OfflineCourseComment">
+		insert into
+		t_course_offline_comment
+		(course_id,member_id,content,star,anonymous,nick_name,create_at)
+		values(#{courseId},#{memberId},#{content},#{star},#{anonymous},#{nickName},now())
+	</insert>
+
+	<!-- 查询用户当天评论数量 -->
+	<select id="findMemberCommnetCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline_comment where
+		course_id = #{courseId} and member_id = #{memberId}
+		and TO_DAYS(create_at) = TO_DAYS(NOW()) and status = 1
+	</select>
+
+	<!-- 查询线下课程简介 -->
+	<select id="findOfflineCourseInfo" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select o.course_content from t_course_offline o where
+		o.course_id = #{courseId}
+	</select>
+
+	<!-- 根据课程ID查询课程详情 -->
+	<select id="findOnlineCourseInfoByCourseId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OnlineCourseListInfo">
+		select t.id,t.cover,t.avatar,t.course_name as
+		courseName,o.join_number as userCount,o.end_status as
+		playStatus,o.teacher,
+		if(now() > o.play_end_time ||
+		p.address_url='',o.play_address,p.address_url) as playAddress,
+		if(now() > o.play_end_time ||
+		p.address_url='',o.play_address,p.address_web_url) as playAddressM3u8,
+		o.play_begin_time as playStartTime,o.play_end_time as
+		playEndTime,o.time_length as timeLength,o.is_video as isVideo
+		from
+		t_course_online o left join t_course t on t.id = o.course_id
+		left join t_play_address p on p.id = o.play_address_id
+		where 1=1 and o.status = 1 and t.id = #{id} limit 1
+	</select>
+
+	<!-- 查询线上课程列表 -->
+	<select id="findOnlineCourseList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OnlineCourseListInfo">
+		select t.id,t.cover,t.avatar,t.course_name as courseName,o.end_status
+		as playStatus,o.teacher,
+		if(now() > o.play_end_time ||
+		p.address_url='',o.play_address,p.address_url) as playAddress,o.tag,
+		if(now() > o.play_end_time ||
+		p.address_url='',o.play_address,p.address_web_url) as
+		playAddressM3u8,o.create_at as createAt,
+		o.play_begin_time as
+		playStartTime,o.play_end_time as playEndTime,o.time_length as
+		timeLength,o.is_video as isVideo,o.price
+		from t_course_online o left join t_course t on t.id = o.course_id
+		left join t_play_address p on p.id = o.play_address_id
+		where 1=1 and o.status = 1
+		<if test="from == 1">
+			and t.is_hidden = 0
+		</if>
+		<if test="from == 0">
+			and t.web_hidden = 0
+		</if>
+
+		<if test="type == 1">
+		<![CDATA[
+			and o.play_begin_time < #{time} and DATE_ADD(o.play_begin_time,interval o.time_length minute) > #{time} order by o.play_begin_time asc
+		]]>
+		</if>
+		<if test="type == 2">
+		<![CDATA[
+			and o.play_begin_time > #{time} order by o.play_begin_time asc
+		]]>
+		</if>
+		<if test="type == 3">
+		<![CDATA[
+			and DATE_ADD(o.play_begin_time,interval o.time_length minute) < #{time} and o.time_length > 0 order by o.play_begin_time desc
+		]]>
+		</if>
+		<if test="limit != null">
+			limit #{limit}
+		</if>
+	</select>
+	<select id="findOnlineCourseListV2" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OnlineCourseListInfo">
+		select t.id,t.cover,t.avatar,t.course_name as
+		courseName,o.end_status as playStatus,o.teacher,o.time_length as
+		timeLength,
+		if(now() > o.play_end_time ||
+		p.address_url='',o.play_address,p.address_url) as playAddress,o.tag,
+		if(now() > o.play_end_time ||
+		p.address_url='',o.play_address,p.address_web_url) as
+		playAddressM3u8,o.create_at as createAt,
+		o.play_begin_time as
+		playStartTime,o.play_end_time as playEndTime,o.time_length as
+		timeLength,o.is_video as isVideo,o.price
+		from t_course_online o left join t_course t on t.id = o.course_id
+		left join t_play_address p on p.id = o.play_address_id
+		where 1=1 and o.status = 1 and t.web_hidden = 0 order by o.play_begin_time
+		desc
+		limit #{page},#{pageCount}
+	</select>
+
+	<select id="findOnlineCourseCountV2" resultType="java.lang.Long">
+		select count(*)
+		from t_course_online o left join t_course t on t.id = o.course_id
+		left join t_play_address p on p.id = o.play_address_id
+		where 1=1 and o.status = 1 and t.web_hidden = 0
+	</select>
+
+	<!-- 查询线上课程数量 -->
+	<select id="findOnlineCourseCount" resultType="java.lang.Long">
+		<![CDATA[
+		select count(*) 
+		from t_course_online o 
+		where o.status = 1 and (o.play_begin_time >now() or (o.play_end_time < now() and o.time_length > 0))
+		]]>
+	</select>
+
+	<!-- 查询线上直播课程数量 -->
+	<select id="findPlayCourseCount" resultType="java.lang.Long">
+	<![CDATA[
+		select count(*)
+		from t_course_online o 
+		where o.status = 1 and o.play_begin_time <= now() and o.play_end_time >= now()
+		]]>
+	</select>
+
+	<!-- 查询线上课程信息 -->
+	<select id="findOnlineCourseByCourseId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.OnlineCourse">
+		select id,course_id as courseId,play_begin_time as
+		playBeginTime,play_end_time as playEndTime,play_address_id as
+		playAddressId,
+		join_number as joinNumber,is_video as
+		isVideo,status,version,price,introduction,create_at as createAt
+		from t_course_online where course_id = #{courseId} and status = 1
+	</select>
+
+	<!-- 查询线上课程信息 -->
+	<select id="findOnlineWebCourseByCourseId" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OnlineCourseResultInfo">
+		select c.id as courseId,c.course_name as
+		title,o.`introduction` as content,o.price,o.create_at as createAt from
+		t_course_online o left join t_course c on o.course_id = c.id
+		where o.course_id = #{courseId}
+	</select>
+
+	<!-- 查询录音课程信息 -->
+	<select id="findOnlineWebCourseByCourseSell" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.OnlineCourseResultInfo">
+		select c.id as courseId,c.course_name as
+		title,o.`introduction` as content,o.price,o.create_at as createAt,
+		c.is_sell as isSell from t_course_online o left join t_course c on
+		o.course_id = c.id
+		where o.course_id = #{courseId}
+	</select>
+
+	<!-- 修改线上课程 -->
+	<update id="updateOnlineCourse" parameterType="cn.ichazuo.model.table.OnlineCourse">
+		update t_course_online
+		<set>
+			<if test="playBeginTime != null">
+				play_begin_time = #{playBeginTime},
+			</if>
+			<if test="playEndTime != null">
+				play_end_time = #{playEndTime},
+			</if>
+			<if test="playAddressId != null">
+				play_address_id = #{playAddressId},
+			</if>
+			<if test="playAddress != null">
+				play_address = #{playAddress},
+			</if>
+			<if test="joinNumber != null">
+				join_number = #{joinNumber},
+			</if>
+			<if test="isVideo != null">
+				is_video = #{isVideo},
+			</if>
+			<if test="status != null">
+				status = #{status},
+			</if>
+			<if test="timeLength != null">
+				time_length = #{timeLength},
+			</if>
+			update_at = now(),version = version + 1
+		</set>
+		where 1=1 and id = #{id} and version = #{version}
+	</update>
+
+	<!-- 查询线上课程详情 -->
+	<select id="findOnlineCourseContent" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select course_content from t_course_online where course_id
+		= #{courseId} and `status` = 1
+	</select>
+	<select id="findOnlineCoursePPT" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select course_ppt from t_course_online where course_id =
+		#{courseId} and `status` = 1
+	</select>
+	<select id="findOnlineCourseBack" parameterType="java.lang.Long"
+		resultType="java.lang.String">
+		select course_back from t_course_online where course_id =
+		#{courseId} and `status` = 1
+	</select>
+
+	<!-- 保存线上课程参加信息 -->
+	<insert id="saveOnlineJoin" parameterType="cn.ichazuo.model.table.CourseOnlineJoin">
+		insert into
+		t_course_online_join(course_id,member_id,create_at)
+		values(#{courseId},#{memberId},now())
+	</insert>
+
+	<!-- 修改线上课程参加信息 -->
+	<update id="updateOnlineJoinStatus" parameterType="cn.ichazuo.model.table.CourseOnlineJoin">
+		update
+		t_course_online_join set status = #{status},version = version +
+		1,update_at = now()
+		where id = #{id} and version = #{version}
+	</update>
+
+	<!-- 查询线上课程参加信息 -->
+	<select id="findOnlineJoinInfo" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.CourseOnlineJoin">
+		select id,course_id as courseId,member_id as
+		memberId,`status`,version from t_course_online_join
+		where course_id = #{courseId} and member_id = #{memberId}
+	</select>
+
+	<!-- 保存线上课程评论 -->
+	<insert id="saveOnlineCourseComment" parameterType="cn.ichazuo.model.table.OnlineCourseComment">
+		insert into
+		t_course_online_comment(course_id,member_id,content,create_at,avatar,nick_name)
+		values
+		(#{courseId},#{memberId},#{content},now(),#{avatar},#{nickName})
+	</insert>
+
+	<!-- 查询线上课程评论 -->
+	<select id="findOnlineCourseCommentList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OnlineCourseCommentInfo">
+		select c.id,c.content,c.member_id as
+		userId,if(c.avatar!='',c.avatar,m.avatar) as
+		avatar,if(c.nick_name!='',c.nick_name,m.nick_name) as
+		nickName,c.create_at as createAt
+		from t_course_online_comment c left join t_member m on m.id = c.member_id
+		where 1=1 and c.status = 1 and c.course_id = #{courseId} and
+		c.create_at > #{time} and m.status = 1
+	</select>
+
+	<!-- 查询线上课程评论数量 -->
+	<select id="findOnlineCourseCommentCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*)
+		from t_course_online_comment c
+		where 1=1 and c.status = 1 and c.course_id = #{courseId}
+	</select>
+
+	<!-- 查询线上课程在线用户列表 -->
+	<select id="findOnlineJoinMemberLimit10" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name
+		as companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_course_online_favour c left join t_member m on m.id = c.member_id
+		inner join t_member_info i on i.member_id = m.id
+		where c.status = 1 and c.course_id = #{courseId} and m.status = 1 order by
+		c.create_at desc,c.update_at desc limit 10
+	</select>
+
+	<!-- 查询线上课程在线用户 -->
+	<select id="findOnlineJoinMember" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.UserSimpleInfo">
+		select m.id,m.nick_name as nickname,m.avatar,i.company_name
+		as companyName,i.job_name as jobName,i.job_year as jobYear
+		from t_course_online_join c left join t_member m on m.id = c.member_id
+		inner join t_member_info i on i.member_id = m.id
+		where c.status = 1 and c.course_id = #{courseId} and m.status = 1
+	</select>
+
+	<!-- 查询线上课程在线人数 -->
+	<select id="findOnlineJoinNumber" parameterType="java.util.Map"
+		resultType="java.lang.Long">
+		select count(*) from t_course_online_join c left join
+		t_member m on m.id = c.member_id where c.status = 1 and c.course_id =
+		#{courseId} and m.`status` = 1
+	</select>
+
+	<!-- 修改客户端点击数量 -->
+	<update id="updateAppCourseClickNumber" parameterType="java.lang.Long">
+		update
+		t_course set app_click_number = app_click_number + 1 where id =
+		#{courseId}
+	</update>
+
+	<!-- 查询线上课程用户点赞 -->
+	<select id="findOnlineCourseFavour" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.OnlineCourseFavour">
+		select id,member_id as memberId,course_id as
+		courseId,status from t_course_online_favour where course_id =
+		#{courseId} and member_id = #{memberId} limit 1
+	</select>
+
+	<!-- 保存线上课程点赞信息 -->
+	<insert id="saveOnlineCourseFavour" parameterType="cn.ichazuo.model.table.OnlineCourseFavour">
+		insert into
+		t_course_online_favour(course_id,member_id,status,create_at)
+		values(#{courseId},#{memberId},1,now())
+	</insert>
+
+	<!-- 修改线上课程点赞信息 -->
+	<update id="updateOnlineCourseFavour" parameterType="cn.ichazuo.model.table.OnlineCourseFavour">
+		update
+		t_course_online_favour set status = #{status} ,version = version +
+		1,update_at = now() where id = #{id}
+	</update>
+
+	<!-- 修改线下课程报名数量 -->
+	<update id="updateOfflineCourseJoinNumber" parameterType="java.util.Map">
+		update
+		t_course_offline set join_count = join_count + #{joinCount},update_at
+		= now(),version = version + 1 where course_id = #{courseId}
+	</update>
+
+	<!-- 查询点赞数量 -->
+	<select id="findOnlineCourseFavourCount" parameterType="java.lang.Long"
+		resultType="java.lang.Long">
+		select count(*) from t_course_online_favour where course_id
+		= #{courseId} and status = 1
+	</select>
+	<!-- ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓以下为后台管理↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ -->
+
+	<!-- 根据ID查询课程对象 -->
+	<select id="findCourseById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Course">
+		select id,course_name as courseName,type,begin_time as
+		beginTime,cover,avatar,`status`,version
+		from t_course where 1=1 and id=#{id}
+	</select>
+
+	<!-- 查询课程列表信息 -->
+	<select id="findCourseInfoList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.admin.CourseListInfo">
+		select c.id,c.course_name as courseName,c.type,c.begin_time as
+		beginTime,c.cover,c.avatar,
+		<if test="type == 0">
+			o.offline_type_id as offlineTypeId,o.course_content as
+			courseContent,o.price,o.course_time as courseTime,
+			o.city_id as
+			cityId,y.city_name as cityName,o.teacher_id as
+			teacherId,o.student_num as studentNum,o.address,
+			o.lat,o.lon,o.comment_count as commentCount,o.star,o.favour_count as
+			favourCount
+		</if>
+		<if test="type == 1">
+			p.address_name as playAddress,p.id as
+			playAddressId,l.play_begin_time as playBeginTime,l.play_end_time as
+			playEndTime,l.is_video as isVideo
+		</if>
+		from t_course c
+		<if test="type == 1">
+			left join t_course_online l on l.course_id = c.id
+			left join t_play_address p on p.id = l.play_address_id
+		</if>
+		<if test="type == 0">
+			left join t_course_offline o on o.course_id = c.id
+			left
+			join t_city y on y.id = o.city_id
+		</if>
+		where c.status = 1 and c.type = #{type}
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询课程列表条数 -->
+	<select id="findCourseInfoListCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from t_course c
+		where c.status = 1 and c.type = #{type}
+	</select>
+	<!-- 修改课程信息 -->
+	<update id="updateCourse" parameterType="cn.ichazuo.model.table.Course">
+		update t_course
+		<set>
+			<if test="courseName != null">
+				course_name = #{courseName},
+			</if>
+			<if test="type != null">
+				type = #{type},
+			</if>
+			<if test="cover != null">
+				cover = #{cover},
+			</if>
+			<if test="avatar != null">
+				avatar = #{avatar},
+			</if>
+			<if test="beginTime != null">
+				begin_time = #{beginTime},
+			</if>
+			update_at = now(),version = version + 1
+		</set>
+		where id = #{id} and version = #{version}
+	</update>
+
+	<!-- 更新课程状态 -->
+	<update id="updateCourseStatus" parameterType="java.lang.Long">
+		update t_course
+		set status = 0,version = version + 1,update_at = now() where id =
+		#{id}
+	</update>
+
+	<!-- 更新线下课程状态 -->
+	<update id="updateOfflineCourseStatus" parameterType="java.lang.Long">
+		update
+		t_course_offline set status = 0,version = version + 1,update_at =
+		now() where course_id = #{id}
+	</update>
+
+	<!-- 更新线上课程状态 -->
+	<update id="updateOnlineCourseStatus" parameterType="java.lang.Long">
+		update
+		t_course_online set status = 0,version = version + 1,update_at = now()
+		where course_id = #{id}
+	</update>
+
+	<!-- 保存线下课程图片 -->
+	<insert id="saveOfflineCourseImage" parameterType="cn.ichazuo.model.table.OfflineCourseImage">
+		insert into
+		t_course_offline_image (course_id,image_url,create_at)
+		values(#{courseId},#{imageUrl},now())
+	</insert>
+
+	<!-- 查询用户报名课程数 -->
+	<select id="findMemberJoinOfflineCount" parameterType="java.lang.Long"
+		resultType="java.lang.Integer">
+
+	</select>
+
+	<!-- 根据课程id查询课程图片 -->
+	<select id="findOfflineCourseImage" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.admin.CourseImageListInfo">
+		select i.id,t.course_name as courseName,i.image_url as url
+		from t_course_offline_image i
+		left join t_course t on i.course_id = t.id
+		where i.status = 1 and t.id = #{courseId}
+		limit #{page},#{pageCount}
+	</select>
+
+	<!-- 查询课程图片总数 -->
+	<select id="findOfflineCourseImageCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*)
+		from t_course_offline_image i
+		where i.status = 1 and i.course_id = #{courseId}
+	</select>
+
+	<!-- 修改课程图片 -->
+	<update id="updateCourseImage" parameterType="cn.ichazuo.model.table.OfflineCourseImage">
+		update
+		t_course_offline_image set status = #{status},version = version +
+		1,image_url = #{imageUrl}
+		where id = #{id} and version = #{version}
+	</update>
+
+	<!-- 根据ID查询课程图片信息 -->
+	<select id="findOfflineCourseImageById" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.OfflineCourseImage">
+		select id,course_id as courseId,image_url as
+		imageUrl,`status`,version
+		from t_course_offline_image where status = 1 and id = #{id}
+	</select>
+	<!-- ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑以上为后台管理↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑ -->
+
+	<!-- 查询线下课程列表(旧版本使用) -->
+	<select id="findOfflineCourseList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineCourseListInfo">
+		select c.id,c.cover,c.avatar,c.course_name as
+		courseName,o.favour_count as userCount,
+		o.student_num as
+		studentNum,o.course_time as courseTime,y.city_name as cityName
+		from t_course_offline o left join t_course c on c.id = o.course_id
+		left join t_city y on y.id = o.city_id
+		where c.status = 1
+		<if test="searchName != null">
+			and c.course_name like #{searchName}
+		</if>
+		<if test="courseType != null">
+			and o.offline_type_id = #{courseType}
+		</if>
+		<if test="type != null">
+			order by c.begin_time desc,o.id desc
+		</if>
+		<if test="favour != null">
+			order by o.favour_count desc,o.id desc
+		</if>
+		<if test="number == null">
+			limit #{page},#{pageCount}
+		</if>
+		<if test="number != null">
+			limit #{number}
+		</if>
+	</select>
+
+	<!-- 查询线下课程总数(旧版本使用) -->
+	<select id="findOfflineCourseListCount" parameterType="java.util.Map"
+		resultType="java.lang.Integer">
+		select count(*) from t_course_offline o left join t_course c on c.id =
+		o.course_id
+		left join t_city y on y.id = o.city_id
+		where c.status = 1
+		<if test="searchName != null">
+			and c.course_name like #{searchName}
+		</if>
+		<if test="courseType != null">
+			and o.offline_type_id = #{courseType}
+		</if>
+	</select>
+
+	<select id="findBuyCourseCount" parameterType="java.util.Map"
+		resultType="java.lang.Long">
+		select count(*) from t_course_web_order where unionid =
+		#{unionId} and course_id = #{courseId} and status = 1
+	</select>
+
+	<!-- 查询线上课程信息 -->
+	<select id="findCourseIsSell" parameterType="java.lang.Long"
+		resultType="cn.ichazuo.model.table.Course">
+		select is_sell as isSell from t_course where id = #{id} and
+		status = 1
+	</select>
+
+	<!-- 查询线下课程信息，供检票使用 -->
+	<select id="findOfflineCourseListForSign" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineCourseListInfo">
+		select o.newtype as
+		newType,o.isnew,c.id,c.cover,c.avatar,c.course_name as
+		courseName,o.favour_count as userCount,c.begin_time as
+		beginTime,o.teacher_id as teacherIds,
+		o.student_num as
+		studentNum,o.course_time as courseTime,y.city_name as cityName
+		,o.show_address as showAddress,o.price
+		from t_course_offline o left
+		join t_course c on c.id = o.course_id
+		left join t_city y on y.id = o.city_id
+		where c.status = 1 and o.newtype = 0 and
+		DATEDIFF(c.begin_time,date_sub(NOW(),interval 3 day)) >=0 order by
+		c.begin_time asc
+	</select>
+
+	<!-- 根据手机号码后四位查询线下课程报名信息，供检票使用 -->
+	<select id="findOfflineJoinForSigned" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineJoinMember">
+		select o.mobile,o.nick_name as nickName from v_offline_join
+		o where (o.course_id = #{courseId} or o.course_id =148) and substring(o.mobile,-4) =
+		#{mobile}
+	</select>
+	<!-- 根据手机号码查询线下课程报名信息，供检票使用 -->
+	<select id="findOfflineJoinForSignedAll" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineJoinMember">
+		select o.mobile,o.nick_name as nickName from v_offline_join
+		o where (o.course_id = #{courseId} or o.course_id =148) and o.mobile = #{mobile}
+	</select>
+
+	<!-- 根据手机号码查询线下课程报名手机号，供检票使用 -->
+	<select id="findOfflineJoinMobileForSigned" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select o.mobile from v_offline_join o where (o.course_id =
+		#{courseId} or o.course_id =148)and substring(o.mobile,-4) = #{mobile}
+	</select>
+
+	<!-- 根据手机号码查询线下课程报名姓名，供检票使用 -->
+	<select id="findOfflineJoinNameForSigned" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select o.nick_name from v_offline_join o where (o.course_id
+		= #{courseId} or o.course_id =148) and substring(o.mobile,-4) = #{mobile}
+	</select>
+
+	<!-- 根据手机号码查询线下课程报名姓名，供检票使用 -->
+	<select id="findOfflineJoinNameForSignedAll" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select o.nick_name from v_offline_join o where (o.course_id
+		= #{courseId} or o.course_id =148 )and o.mobile = #{mobile}
+	</select>
+
+	<!-- 保存线下课程签到信息 -->
+	<insert id="saveOfflineSignedInfo" parameterType="cn.ichazuo.model.app.OfflineSigned">
+		insert into
+		t_offline_signed(name,mobile,course_id,course_name,create_at)
+		values(#{name},#{mobile},#{courseId},#{courseName},#{createAt})
+	</insert>
+
+	<!-- 根据手机号码后四位查询线下课程报名信息，供检票使用 -->
+	<select id="OfflineSigned" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select o.create_at from t_offline_signed o where
+		o.course_id = #{courseId} and substring(o.mobile,-4) = #{mobile} and
+		to_days(o.create_at)=to_days(now()) order by o.create_at desc limit 1
+	</select>
+	<!-- 根据手机号码查询线下课程报名信息，供检票使用 -->
+	<select id="OfflineSignedAll" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select o.create_at from t_offline_signed o where
+		o.course_id = #{courseId} and o.mobile = #{mobile} and
+		to_days(o.create_at)=to_days(now()) order by o.create_at desc limit 1
+	</select>
+
+	<!-- 根据手机号码查询线下课程报名信息，供检票使用 -->
+	<select id="findOfflineSignedJoinListShang" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineSigned">
+		select o.mobile,o.name,o.create_at as createAt from
+		t_offline_signed o where o.course_id = #{courseId} and #{sign} >=
+		o.create_at and to_days(o.create_at)=to_days(now()) order by create_at
+		desc
+	</select>
+	<!-- 根据手机号码查询线下课程报名信息，供检票使用 -->
+	<select id="findOfflineSignedJoinListXia" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineSigned">
+		select o.mobile,o.name,o.create_at as createAt from
+		t_offline_signed o where o.course_id = #{courseId} and o.create_at >=
+		#{sign} and to_days(o.create_at)=to_days(now()) order by create_at
+		desc
+	</select>
+
+	<!-- 根据课程Id查询当天线下课程上午报名手机号信息列表，供检票使用 -->
+	<select id="findOfflineSignedMobileListShang" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineSigned">
+		select o.mobile from t_offline_signed o where o.course_id =
+		#{courseId} and #{sign} >= o.create_at and
+		to_days(o.create_at)=to_days(now()) order by create_at desc
+	</select>
+	<!-- 根据课程Id查询当天线下课程下午报名手机号信息列表，供检票使用 -->
+	<select id="findOfflineSignedMobileListXia" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select o.mobile from t_offline_signed o where o.course_id =
+		#{courseId} and o.create_at >= #{sign} and
+		to_days(o.create_at)=to_days(now()) order by create_at desc
+	</select>
+	<!-- 根据课程Id查询当天线下课程下午报名手机号信息列表，供检票使用 -->
+	<select id="findOfflineNotSignedMobileListXia" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineJoinMember">
+		select o.mobile,o.nick_name as nickName from v_offline_join
+		o where o.course_id = #{courseId} and o.mobile not in (select o.mobile
+		from t_offline_signed o where o.course_id = #{courseId} and
+		o.create_at >= #{sign} and to_days(o.create_at)=to_days(now()))
+	</select>
+	<!-- 根据课程Id查询当天线下课程上午报名手机号信息列表，供检票使用 -->
+	<select id="findOfflineNotSignedMobileListShang" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineJoinMember">
+		select o.mobile,o.nick_name as nickName from v_offline_join
+		o where o.course_id = #{courseId} and o.mobile not in (select o.mobile
+		from t_offline_signed o where o.course_id = #{courseId} and #{sign} >=
+		o.create_at and to_days(o.create_at)=to_days(now()))
+	</select>
+	<!-- 根据课程Id查询当天线下课程上午报名手机号信息列表，供检票使用 -->
+	<select id="findOfflineNotSignedList" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.app.OfflineJoinMember">
+		select o.mobile,o.nick_name as nickName from v_offline_join
+		o where o.course_id = #{courseId}
+	</select>
+	
+	<!-- 保存线上课程参加信息 -->
+	<insert id="JNCourseOnlineJoin" parameterType="cn.ichazuo.model.table.JNCourseOnlineJoin">
+		insert into
+		t_course_jiniu_offline_join(course_id,member_id,create_at)
+		values(#{courseId},#{memberId},now())
+	</insert>
+	<!-- 查询线下课程报名人数 -->
+		<!-- 查询线下课程报名信息 -->
+	<select id="findJNCourseJoin" parameterType="java.util.Map"
+		resultType="cn.ichazuo.model.table.JNCourseOnlineJoin">
+		select id,course_id as courseId,member_id as
+		memberId,status,version
+		from t_course_jiniu_offline_join where course_id = #{courseId} and member_id =
+		#{memberId} and status = 1
+	</select>
+	<!-- 保存线下课程报名信息 -->
+	<insert id="saveJNCourseJoin" parameterType="cn.ichazuo.model.table.JNCourseOnlineJoin">
+		insert into
+		t_course_jiniu_offline_join(course_id,member_id,create_at,type,from1,order_id)
+		values(#{courseId},#{memberId},now(),#{type},#{from},#{orderId})
+	</insert>
+</mapper>

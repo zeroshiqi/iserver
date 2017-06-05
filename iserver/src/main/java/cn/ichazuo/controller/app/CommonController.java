@@ -1,0 +1,1074 @@
+package cn.ichazuo.controller.app;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseController;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.util.DateUtils;
+import cn.ichazuo.commons.util.NumberUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.model.Dictionary;
+import cn.ichazuo.model.app.AppVersionInfo;
+import cn.ichazuo.model.app.BusinessAppVersionInfo;
+import cn.ichazuo.model.app.GiftInfo;
+import cn.ichazuo.model.app.UserInfo;
+import cn.ichazuo.model.table.BusinessVersion;
+import cn.ichazuo.model.table.Course;
+import cn.ichazuo.model.table.Employee;
+import cn.ichazuo.model.table.FeedBack;
+import cn.ichazuo.model.table.Member;
+import cn.ichazuo.model.table.OfflineCourse;
+import cn.ichazuo.model.table.Question;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.Version;
+import cn.ichazuo.service.CommonService;
+import cn.ichazuo.service.CourseService;
+import cn.ichazuo.service.DictService;
+import cn.ichazuo.service.FeedBackService;
+import cn.ichazuo.service.MemberService;
+
+/**
+ * @ClassName: CommonController
+ * @Description: (通用Controller)
+ * @author ZhaoXu
+ * @date 2015年10月19日 下午5:11:24
+ * @version V1.0
+ */
+@RequestMapping("/app")
+@Controller("app.commonController")
+public class CommonController extends BaseController {
+	@Autowired
+	private CourseService courseService;
+	@Autowired
+	private CommonService commonService;
+	@Autowired
+	private MemberService memberService;
+	@Autowired
+	private FeedBackService feedBackService;
+	@Autowired
+	private DictService dictService;
+	@Autowired
+	private ConfigInfo configInfo;
+	
+	protected Logger logger = LoggerFactory.getLogger(getClass());
+
+	/**
+	 * Title: send Description: (发送短信验证码)
+	 * 
+	 * @param mobile
+	 *            手机号
+	 * @param type
+	 *            类型 1.注册时发送 2.找回密码时发送
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/sendCode")
+	public JSONObject send(String mobile, Integer type) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || NumberUtils.isNullOrZero(type)) {
+				return error("参数缺失");
+			}
+			Member member = memberService.findLoginMemberByMobile(mobile);
+			// 判断哪种类型
+			switch (type) {
+			case 1: // 注册时
+				if (member != null && member.getStatus() == 1) {
+					return error("手机号已存在,直接去登录吧");
+				}
+				break;
+			case 2: // 找回密码时
+				if (member == null) {
+					return error("用户不存在");
+				}
+				break;
+			case 3:
+				if (member != null && member.getStatus() == 1) {
+					return warning("手机号为已存在用户，如果您强制绑定此手机号，原用户信息将会被全部删除，不能恢复。是否强制绑定？");
+				}
+				break;
+			}
+
+			// 调用发送接口
+			commonService.sendMessage(mobile);
+			return ok("验证码已发送(" + mobile + ")，正在路上，先输入密码吧…");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	@ResponseBody
+	@RequestMapping("/forcibleSendMobileCode")
+	public JSONObject forcibleSendMobileCode(String mobile) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile)) {
+				return error("参数错误");
+			}
+			// 调用发送接口
+			commonService.sendMessage(mobile);
+			return ok();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * Title: saveFeedBack Description: (保存意见反馈)
+	 * 
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/saveFeedBack")
+	public JSONObject saveFeedBack(String content, Long userId) {
+		try {
+			if (StringUtils.isNullOrEmpty(content) || NumberUtils.isNullOrZero(userId)) {
+				return error("参数缺失");
+			}
+
+			FeedBack feedBack = new FeedBack();
+			feedBack.setMemberId(userId);
+			feedBack.setContent(content);
+
+			if (feedBackService.saveFeedBack(feedBack)) {
+				return ok("保存成功");
+			}
+			return error("保存失败");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * Title: findHotJobs Description: (查找热门职位)
+	 * 
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/findHotJobs")
+	public JSONObject findHotJobs() {
+		try {
+			// 列表
+			List<Dictionary> hotList = dictService.findDictItemListByCode("HOTJOBS");
+			return ok("查询成功", hotList);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * Title: findCoreCapacity Description: (查询所有核心能力)
+	 * 
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/findCoreCapacity")
+	public JSONObject findCoreCapacity() {
+		try {
+			List<Dictionary> list = dictService.findDictItemListByCode("CORECAPACITY");
+			return ok("查询成功", list);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findReadType
+	 * @Description: (查询所有阅读类型)
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findReadType")
+	public JSONObject findReadType() {
+		try {
+			List<Dictionary> list = dictService.findDictItemListByCode("READTYPE");
+			list.add(0, new Dictionary(0L, "全部"));
+			return ok("查询成功", list);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findCourseType
+	 * @Description: (查询课程分类)
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findCourseType")
+	public JSONObject findCourseType() {
+		try {
+			List<Dictionary> list = dictService.findDictItemListByCode("OFFLINECOURSETYPE");
+			if (list == null) {
+				list = new ArrayList<>();
+			}
+			Dictionary item = new Dictionary();
+			item.setId(0L);
+			item.setValue("全部");
+			list.add(0, item);
+			return ok("查询成功", list);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findAPPVersion
+	 * @Description: (查询APP版本)
+	 * @param info
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findAPPVersion")
+	public JSONObject findAPPVersion(String version, String client) {
+		try {
+			if (StringUtils.isNullOrEmpty(version) || StringUtils.isNullOrEmpty(client)) {
+				return error("参数缺失");
+			}
+			if (version.equals(configInfo.getIosVersion()) && client.equals("iOS")) {
+				AppVersionInfo app = new AppVersionInfo();
+				app.setStatus(0);
+
+				return ok("ok", app);
+			}
+
+			String msg = "由于App升级，旧版本的部分功能无法使用，快去App store更新吧。";
+
+			Version max = commonService.findMaxAppVersion(client);
+			Version now = commonService.findNowAppVersion(client, version);
+
+			if (now == null) {
+				// 设置强制更新
+				AppVersionInfo app = new AppVersionInfo();
+				app.setForce(0);
+				app.setStatus(0);
+				app.setMsg(msg);
+				return ok("ok", app);
+			} else {
+				AppVersionInfo app = new AppVersionInfo();
+				if (max.getWeight() > now.getWeight()) {
+					app.setStatus(1);
+					app.setForce(max.getStatus());// 是否强制更新
+					app.setMsg(msg);
+				} else {
+					app.setStatus(0); // 当前为最新版本
+				}
+				return ok("ok", app);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	@ResponseBody
+	@RequestMapping("/findQuestion")
+	public JSONObject findQuestion() {
+		try {
+			List<Question> all = commonService.findAllQuestion();
+			Collections.shuffle(all);
+
+			List<Question> list = null;
+			if (all.size() > 20) {
+				list = all.subList(0, 20);
+			} else {
+				list = all;
+			}
+			return ok("msg", list);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/*
+	 * 根据试题中type的值获取相应题目
+	 */
+	@ResponseBody
+	@RequestMapping("/findQuestionByType")
+	public JSONObject findQuestionByType(int type) {
+		try {
+			List<Question> all = commonService.findAllQuestionByType(type);
+			Collections.shuffle(all);
+
+			List<Question> list = null;
+			if (all.size() > 10) {
+				list = all.subList(0, 10);
+			} else {
+				list = all;
+			}
+			return ok("msg", list);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/*
+	 * 获取试题列表
+	 */
+	@ResponseBody
+	@RequestMapping("/getQuestionList")
+	public JSONObject getQuestionList(Page page){
+		try{
+			return ok("查询成功",commonService.getQuestionList(page));
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/*
+	 * 获取试题二级目录列表
+	 */
+	@ResponseBody
+	@RequestMapping("/getQuestionChildList")
+	public JSONObject getQuestionChildList(Long id){
+		try{
+			List list = commonService.getQuestionChildList(id);
+			return ok("查询成功",list);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/*
+	 * 根据二级标题id 获取所有问题
+	 */
+	@ResponseBody
+	@RequestMapping("/getChildQuestionsById")
+	public JSONObject getChildQuestionsById(int id,String number) {
+		try {
+			int num = Integer.parseInt(number);
+			List<Question> all = commonService.getChildQuestionsById(id);
+			Collections.shuffle(all);
+//			for(int i=0;i<all.size();i++){
+//				 Pattern p = Pattern.compile("\\s*|\t|\r|\n");
+//		         Matcher m = p.matcher(all.get(i).getTitle());
+//		         String dest = m.replace('\n','<br/>');
+//				all.get(i).setTitle(StringUtils.replacestr(all.get(i).getTitle()));
+//			}
+			List<Question> list = null;
+			if (all.size() > num) {
+				list = all.subList(0, num);
+			} else {
+				list = all;
+			}
+			return ok("msg", list);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: saveTicket
+	 * @Description: (保存)
+	 * @param score
+	 *            分数
+	 * @param unionId
+	 *            唯一ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveTicket")
+	public JSONObject saveTicket(Integer score, String unionId, String avatar, String nickName) {
+		try {
+			if (score == null || StringUtils.isNullOrEmpty(unionId) || StringUtils.isNullOrEmpty(avatar)
+					|| StringUtils.isNullOrEmpty(nickName)) {
+				return error("参数错误!");
+			}
+
+			Long id = commonService.findHaveTicket(unionId);
+			if (!NumberUtils.isNullOrZero(id)) {
+				return ok("已提交", id);
+			}
+			Ticket ticket = new Ticket();
+			ticket.setUnionId(unionId);
+			ticket.setAvatar(avatar);
+			ticket.setNickName(nickName);
+			ticket.setLastTime(DateUtils.parseDate("2016-2-29 23:59:59"));
+
+			if (score == 100) {
+				ticket.setPrice(298.0);
+				ticket.setLevel("一等奖");
+			} else if (score >= 80) {
+				ticket.setPrice(198.0);
+				ticket.setLevel("二等奖");
+			} else {
+				ticket.setLevel("三等奖");
+				ticket.setPrice(98.0);
+			}
+			commonService.saveTicket(ticket);
+			return ok("ok", ticket.getId());
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: saveScore
+	 * @Description: (保存分数)
+	 * @param score
+	 *            分数
+	 * @param unionId
+	 *            唯一ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/saveScore")
+	public JSONObject saveScore(Integer score, String unionId, String avatar, String nickName,Long parentId,Long topParentId,String parentName) {
+		try {
+			if (score == null || StringUtils.isNullOrEmpty(unionId) || StringUtils.isNullOrEmpty(avatar)
+					|| StringUtils.isNullOrEmpty(nickName) || parentId == null || topParentId ==  null) {
+				return error("参数错误!");
+			}
+			Ticket ticket1 = new Ticket();
+			ticket1.setUnionId(unionId);
+			ticket1.setParentId(parentId);
+			ticket1.setTopParentId(topParentId);
+			Long id = commonService.findIfHaveTicket(ticket1);
+			if (!NumberUtils.isNullOrZero(id)) {
+				return ok("已提交", id);
+			}
+			Ticket ticket = new Ticket();
+			ticket.setUnionId(unionId);
+			ticket.setAvatar(avatar);
+			ticket.setNickName(nickName);
+			ticket.setScore(score);
+			ticket.setParentId(parentId);
+			ticket.setTopParentId(topParentId);
+			ticket.setParentName(parentName);
+
+			commonService.saveScore(ticket);
+			return ok("ok", ticket.getId());
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findTicket
+	 * @Description: (查询)
+	 * @param id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findTicket")
+	public JSONObject findTicket(Long id) {
+		try {
+			if (NumberUtils.isNullOrZero(id)) {
+				return error("参数错误");
+			}
+			Ticket ticket = commonService.findTicket(id);
+			String unionId = commonService.findUnionIdById(id);
+			int parentId = commonService.findParentIdById(id);
+			int score = ticket.getScore();
+			float persent =0;
+			//取系列考题的最高分数和低分
+			Long scoreMax = commonService.findScoreMaxByParentId(parentId);
+			Long scoreMin = commonService.findScoreMinByParentId(parentId);
+			Ticket ticket2 = new Ticket();
+			ticket2.setUnionId(unionId);
+			ticket2.setParentId(Long.valueOf(parentId));
+			//获取学员成绩的排名
+			int rowNo = commonService.findTicketNo(ticket2);
+			//获取试题总的参考人数
+			int ticketCount = commonService.findTicketCount(ticket2);
+			if(rowNo == ticketCount){
+				persent = 100;
+			}else{
+				//获取此学员成绩所在的范围
+				if(scoreMax == score){
+					persent = 100;
+				}else if(scoreMin == score){
+					persent = 0;
+				}else{
+					persent = (rowNo*100/ticketCount);
+				}
+			}
+			ticket.setRowNo(rowNo);
+			ticket.setCountNo(ticketCount);
+			ticket.setPercent(persent);
+			
+			if (ticket == null) {
+				return error("参数错误");
+			}
+			return ok("msg", ticket);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: updateTicketFavour
+	 * @Description: (录取通知书，支持Ta)
+	 * @param id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateTicketFavour")
+	public JSONObject updateTicketFavour(Long id) {
+		try {
+			if (NumberUtils.isNullOrZero(id)) {
+				return error("参数错误");
+			}
+			commonService.updateTicketFavour(id);
+			return ok("ok");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findTicketHave
+	 * @Description: (查询)
+	 * @param unionId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findTicketHave")
+	public JSONObject findTicketHave(String unionId) {
+		try {
+			if (StringUtils.isNullOrEmpty(unionId)) {
+				return error("参数缺失");
+			}
+			Long id = commonService.findHaveTicket(unionId);
+			if (id == null) {
+				id = 0L;
+			}
+			return ok("msg", id);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: findTicketHave
+	 * @Description: (查询)
+	 * @param unionId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/queryTicketHave")
+	public JSONObject queryTicketHave(String unionId,Long parentId,Long topParentId) {
+		try {
+			if (StringUtils.isNullOrEmpty(unionId) || parentId == null || topParentId == null) {
+				return error("参数缺失");
+			}
+			Ticket ticket = new Ticket();
+			ticket.setUnionId(unionId);
+			ticket.setParentId(parentId);
+			ticket.setTopParentId(topParentId);
+			Long id = commonService.findIfHaveTicket(ticket);
+			if (id == null) {
+				id = 0L;
+			}
+			return ok("msg", id);
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: updateTicketStatus
+	 * @Description: (更新状态)
+	 * @param id
+	 * @param unionId
+	 *            唯一Id
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/updateTicketStatus")
+	public JSONObject updateTicketStatus(Long id, String unionId) {
+		try {
+			if (NumberUtils.isNullOrZero(id) || StringUtils.isNullOrEmpty(unionId)) {
+				return error("参数缺失");
+			}
+			Params params = new Params();
+			params.putData("id", id);
+			params.putData("unionId", unionId);
+			params.putData("status", 2);
+
+			commonService.updateTicketStatus(params);
+			return ok();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findTicketIsGet
+	 * @Description: (查询是否领取)
+	 * @param unionId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findTicketIsGet")
+	public JSONObject findTicketIsGet(String unionId) {
+		try {
+			if (StringUtils.isNullOrEmpty(unionId)) {
+				return error("参数缺失");
+			}
+			Long id = commonService.findHaveTicket(unionId);
+			if (id == null) {
+				return status(900, "900");
+			}
+			Ticket ticket = commonService.findTicket(id);
+			if (ticket.getStatus() == 1) {
+				return status(800, "未领取", ticket.getId());
+			} else {
+				return status(700, "已领取", ticket.getId());
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findAllImage
+	 * @Description: (查询全部图片)
+	 * @return
+	 */
+	@Deprecated
+	@ResponseBody
+	@RequestMapping("/findAllImage")
+	public JSONObject findAllImage() {
+		try {
+			return ok("查询成功", commonService.findAllImage());
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	/**
+	 * @Title: findAllImageV2
+	 * @Description: (查询全部图片)
+	 * @param type 类别 1:全部  2:线上课程  3:线下课程  4:招聘
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findAllImageV2")
+	public JSONObject findAllImageV2(Integer type) {
+		try {
+			return ok("查询成功", commonService.findAllImageV2(type));
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	
+	
+
+	/**
+	 * @Title: findTicketByUnionId
+	 * @Description: (查询奖学金)
+	 * @param unionId
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findTicketByUnionId")
+	public JSONObject findTicketByUnionId(String unionId, Long courseId) {
+		try {
+			if (StringUtils.isNullOrEmpty(unionId) || NumberUtils.isNullOrZero(courseId)) {
+				return error("参数缺失");
+			}
+			Course course = courseService.findCourseById(courseId);
+			OfflineCourse offline = courseService.findOfflineCourseByCourseId(courseId);
+
+			if (offline == null || course == null) {
+				return error("参数错误");
+			}
+			Long id = commonService.findHaveTicket(unionId);
+			if (id == null) {
+				return status(300, "没有奖学金");
+			}
+			Ticket ticket = commonService.findTicket(id);
+			Date time = DateUtils.parseDate("2015-11-14 23:59:59");
+
+			if (ticket.getStatus()==2&&ticket.getLastTime().after(new Date()) && course.getBeginTime().after(time)
+					&& ticket.getPrice() < offline.getPrice()) {// 奖学金过期时间，开课时间
+				if (offline.getPrice() == 598.00) {// 奖学金金额等于98元时，只能购买598元课程
+					if (ticket.getPrice() == 98) {
+						return ok("可以使用", ticket.getPrice());
+					} else {
+						return status(300, "没有奖学金");
+					}
+				} else {
+					return ok("可以使用", ticket.getPrice());
+				}
+			}
+
+			return status(300, "没有奖学金");
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+
+	/**
+	 * @Title: findUserInfoByUnionId 
+	 * @param unionId
+	 * @return status 777 : 无用户信息  200:返回成功
+	 */
+	@ResponseBody
+	@RequestMapping("/findUserInfoByUnionId")
+	public JSONObject findUserInfoByUnionId(String unionId){
+		try{
+			if(StringUtils.isNullOrEmpty(unionId)){
+				return error("参数错误");
+			}
+			
+			UserInfo info = commonService.findUserInfoByUnionId(unionId);
+			if(info == null){
+				return status(777, "无信息");
+			}else{
+				//判断结果中是否包含email
+				if(StringUtils.isNullOrEmpty(info.getEmail())){
+					UserInfo emailInfo = commonService.findUserEmailInfoByUnionId(unionId);
+					if(emailInfo!=null){
+						info.setEmail(emailInfo.getEmail());
+					}
+				}
+			}
+			return ok("查询成功", info);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findInvoiceDetailByUnionId 
+	 * @param unionId
+	 * 根据用户UnionId查询发票信息
+	 * @return status 777 : 无用户信息  200:返回成功
+	 */
+	@ResponseBody
+	@RequestMapping("/findInvoiceDetailByUnionId")
+	public JSONObject findInvoiceDetailByUnionId(String unionId,String orderNo,String type){
+		try{
+			if(StringUtils.isNullOrEmpty(unionId)){
+				return error("参数错误");
+			}
+			if(StringUtils.isNullOrEmpty(orderNo)){
+				return error("订单编号参数错误");
+			}
+			UserInfo info1 = commonService.findInvoiceDetailByOrderNo(orderNo);
+			if("1".equals(type)){
+				if(info1.getUnionId().equals(unionId)){
+					info1.setIfPurchaser("1");
+					//如果订单里面的发票信息为空
+					if(StringUtils.isNullOrEmpty(info1.getInvoiceTitle())){
+						//根据UnionId查询发票信息
+						UserInfo info = commonService.findInvoiceDetailByUnionId(unionId);
+						if(info == null){
+							return ok("无信息",info1);
+						}
+						return ok("未填写", info1);
+					}
+				}else{
+					info1.setIfPurchaser("0");
+				}
+				return ok("已填写", info1);
+			}else{
+				if(StringUtils.isNullOrEmpty(info1.getInvoiceTitle())){
+					//根据UnionId查询发票信息
+					UserInfo info = commonService.findInvoiceDetailByUnionId(unionId);
+					if(info == null){
+						return status(777, "无信息");
+					}
+					return ok("未填写", info);
+				}
+				return ok("已填写", info1);
+			}
+			
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findGiftDetailByUnionId 
+	 * @param unionId
+	 * 根据用户UnionId查询发票信息
+	 * @return status 777 : 无用户信息  200:返回成功
+	 */
+	@ResponseBody
+	@RequestMapping("/findGiftDetailByOrderNo")
+	public JSONObject findGiftDetailByOrderNo(String unionId,String orderNo){
+		try{
+			if(StringUtils.isNullOrEmpty(unionId)){
+				return error("参数错误");
+			}
+			if(StringUtils.isNullOrEmpty(orderNo)){
+				return error("订单编号参数错误");
+			}
+			//根据订单编号查询赠送信息
+			GiftInfo gift = commonService.findGiftDetailByOrderNo(orderNo);
+			String month = DateUtils.formatDate(gift.getBeginTime(),DateUtils.MONTH);
+			String day = DateUtils.formatDate(gift.getBeginTime(),DateUtils.Day);
+			gift.setMonth(month);
+			gift.setDay(day);
+			if(unionId.equals(gift.getUnionId())){
+				gift.setIfPurchaser("1");
+			}else{
+				gift.setIfPurchaser("0");
+			}
+			return ok("查询成功", gift);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findQRCode 
+	 * @Description: (查询二维码) 
+	 * @param id 课程ID
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findQRCode")
+	public JSONObject findQRCode(Long id){
+		try{
+			if(NumberUtils.isNullOrZero(id)){
+				return error("参数错误");
+			}
+			String url = commonService.findQRCode(id);
+			return ok("查询成功", url);
+		}catch(Exception e){
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * @Title: findBusinessAPPVersion
+	 * @Description: (查询企业APP版本)
+	 * @param info
+	 * @return
+	 */
+	@ResponseBody
+	@RequestMapping("/findBusinessAPPVersion")
+	public JSONObject findBusinessAPPVersion(String version, String client) {
+		try {
+			if (StringUtils.isNullOrEmpty(version) || StringUtils.isNullOrEmpty(client)) {
+				return error("参数缺失");
+			}
+			String resingerMsg= "关注微信公众号「插坐学院」\n"
+					+ "回复「好多课」购买\n"
+					+ "购买后自动生成账号及密码";
+			if (version.equals(configInfo.getBusinessIosVersion()) && client.equals("ios")) {
+				BusinessAppVersionInfo app = new BusinessAppVersionInfo();
+				app.setStatus(0);
+				app.setResingerMsg(resingerMsg);
+				return ok("ok", app);
+			}
+			if (version.equals(configInfo.getBusinessAndroidVersion()) && client.equals("android")) {
+				BusinessAppVersionInfo app = new BusinessAppVersionInfo();
+				app.setStatus(0);
+				app.setResingerMsg(resingerMsg);
+				return ok("ok", app);
+			}
+			String msg = "";
+			if("iOS".equals(version)){
+				msg ="由于App升级，旧版本的部分功能无法使用，快去App store更新吧。";
+			}else{
+				msg ="由于App升级，旧版本的部分功能无法使用，快去更新吧。";
+			}
+
+			BusinessVersion max = commonService.findBusinessMaxAppVersion(client);
+			BusinessVersion now = commonService.findNowBusinessAppVersion(client, version);
+
+			if (now == null) {
+				// 设置强制更新
+				BusinessAppVersionInfo app = new BusinessAppVersionInfo();
+				app.setForce(0);
+				app.setStatus(0);
+				app.setMsg(msg);
+				app.setAddress(max.getAddress());
+				app.setResingerMsg(resingerMsg);
+				return ok("ok", app);
+			} else {
+				BusinessAppVersionInfo app = new BusinessAppVersionInfo();
+				app.setResingerMsg(resingerMsg);
+				if (max.getWeight() > now.getWeight()) {
+					app.setStatus(1);
+					app.setForce(max.getStatus());// 是否强制更新
+					app.setMsg(msg);
+					app.setAddress(max.getAddress());
+				} else {
+					app.setStatus(0); // 当前为最新版本
+				}
+				return ok("ok", app);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * Title: send Description: (发送短信验证码)
+	 * 
+	 * @param mobile
+	 *            手机号
+	 * @param type
+	 *            类型 1.注册时发送 2.找回密码时发送
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/sendBusinessCode")
+	public JSONObject sendBusinessCode(String mobile, Integer type,String version,String sign) {
+		try {
+			if (StringUtils.isNullOrEmpty(mobile) || NumberUtils.isNullOrZero(type)) {
+				return error("参数缺失");
+			}
+			if(("2.0.5").equals(version) || ("2.0.1").equals(version)||("2.0.4").equals(version)){
+				//解密
+				UpAES upAES = new UpAES();
+				System.out.println("解密后的mobile："+upAES.disEntry(mobile.toString()));
+				String newMobile = upAES.disEntry(mobile.toString());
+				//重新赋值deviceId
+				String newSign = PasswdEncryption.MD5(newMobile+"");
+				newSign= newSign.substring(5, newSign.length()-5);
+				SimpleDateFormat df1 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+				logger.error("手机号："+newMobile+"，type："+type+"，发送短信时间："+df1.format(new Date()));
+				if(newSign.equals(sign)){
+					Employee employee = memberService.findBusinessLoginMemberByMobile1(newMobile);
+					// 判断哪种类型
+					switch (type) {
+					case 1: // 注册时
+						if (employee != null && employee.getStatus() == 1) {
+							return status(110,"手机号已存在,直接去登录吧");
+						}
+						break;
+					case 2: // 找回密码时
+						if (employee == null) {
+							return status(112,"用户不存在");
+						}
+						break;
+					case 3:
+						if (employee != null && employee.getStatus() == 1) {
+							return warning("手机号为已存在用户，如果您强制绑定此手机号，原用户信息将会被全部删除，不能恢复。是否强制绑定？");
+						}
+						break;
+					}
+					// 调用发送接口
+					commonService.sendCLMessage(newMobile);
+					logger.error("手机号："+newMobile+"，type："+type+"，发送短信----成功----时间："+df1.format(new Date()));
+					return ok("验证码已发送");
+				}else{
+					return status(97,"sign验证出错");
+				}
+			}else{
+				Employee employee = memberService.findBusinessLoginMemberByMobile1(mobile);
+				// 判断哪种类型
+				switch (type) {
+				case 1: // 注册时
+					if (employee != null && employee.getStatus() == 1) {
+						return error("手机号已存在,直接去登录吧");
+					}
+					break;
+				case 2: // 找回密码时
+					if (employee == null) {
+						return error("用户不存在");
+					}
+					break;
+				case 3:
+					if (employee != null && employee.getStatus() == 1) {
+						return warning("手机号为已存在用户，如果您强制绑定此手机号，原用户信息将会被全部删除，不能恢复。是否强制绑定？");
+					}
+					break;
+				}
+				// 调用发送接口
+				commonService.sendCLMessage(mobile);
+				return ok("验证码已发送(" + mobile + ")，正在路上，先输入密码吧…");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+	/**
+	 * Title: send Description: (发送短信验证码)
+	 * 
+	 * @param mobile
+	 *            手机号
+	 * @param type
+	 *            类型 1.注册时发送 2.找回密码时发送
+	 * @return
+	 * @author ZhaoXu
+	 */
+	@ResponseBody
+	@RequestMapping("/sendDelayedBusinessCode")
+	public JSONObject sendDelayedBusinessCode(String mobile,String sign,String version,String client) {
+		try {
+			if(("2.0.5").equals(version) || ("2.0.1").equals(version)||("2.0.4").equals(version)){
+				//解密
+				UpAES upAES = new UpAES();
+//				upAES.entry("1");
+				System.out.println("解密后的mobile："+upAES.disEntry(mobile.toString()));
+//				System.out.println("解密后的deviceId："+upAES.disEntry(deviceId));
+				String newMobile = upAES.disEntry(mobile.toString());
+//				String newDeviceId =upAES.disEntry(deviceId.toString());
+				//重新赋值deviceId
+//				deviceId =upAES.disEntry(deviceId);
+				String newSign = PasswdEncryption.MD5(newMobile+"");
+				newSign= newSign.substring(5, newSign.length()-5);
+				System.out.println("得到的新Sign:"+newSign);
+				System.out.println("传的sign:"+sign);
+				if(newSign.equals(sign)){
+					Employee employee = memberService.findBusinessLoginMemberByMobile(newMobile);
+					//延时一分钟调用短信发送接口
+		//			Thread.sleep(60000);
+					// 调用发送接口
+					commonService.sendCLMessage(newMobile);
+					return ok("验证码已发送");
+				}else{
+					return status(97,"sign验证出错");
+				}
+			}else{
+				Employee employee = memberService.findBusinessLoginMemberByMobile(mobile);
+				//延时一分钟调用短信发送接口
+	//			Thread.sleep(60000);
+				// 调用发送接口
+				commonService.sendCLMessage(mobile);
+				return ok("验证码已发送(" + mobile + ")，正在路上，先输入密码吧…");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			return error(APP_SYSTEM_ERROR);
+		}
+	}
+}

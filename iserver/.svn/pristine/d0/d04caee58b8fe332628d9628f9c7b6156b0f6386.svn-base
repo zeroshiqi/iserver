@@ -1,0 +1,627 @@
+package cn.ichazuo.service;
+
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.SortedMap;
+
+import javax.annotation.Resource;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.alibaba.fastjson.JSONObject;
+
+import cn.ichazuo.commons.base.BaseService;
+import cn.ichazuo.commons.component.CacheInfo;
+import cn.ichazuo.commons.component.ConfigInfo;
+import cn.ichazuo.commons.component.RedisClient;
+import cn.ichazuo.commons.util.CodeUtils;
+import cn.ichazuo.commons.util.PasswdEncryption;
+import cn.ichazuo.commons.util.StringUtils;
+import cn.ichazuo.commons.util.model.Page;
+import cn.ichazuo.commons.util.model.Params;
+import cn.ichazuo.commons.util.sms.HttpSend;
+import cn.ichazuo.commons.util.sms.MD5;
+import cn.ichazuo.dao.CommonDao;
+import cn.ichazuo.model.app.Images;
+import cn.ichazuo.model.app.OnlineCourseCommentInfo;
+import cn.ichazuo.model.app.UserInfo;
+import cn.ichazuo.model.app.WebJobInfo;
+import cn.ichazuo.model.app.WebOfflineCourseInfo;
+import cn.ichazuo.model.table.BusinessTicket;
+import cn.ichazuo.model.table.BusinessVersion;
+import cn.ichazuo.model.table.CourseWebInfo;
+import cn.ichazuo.model.table.Question;
+import cn.ichazuo.model.table.Ticket;
+import cn.ichazuo.model.table.Version;
+import cn.ichazuo.model.app.QuestionListInfo;
+import cn.jpush.api.JPushClient;
+import cn.jpush.api.common.APIConnectionException;
+import cn.jpush.api.common.APIRequestException;
+import cn.jpush.api.push.PushResult;
+import cn.jpush.api.push.model.Message;
+import cn.jpush.api.push.model.Options;
+import cn.jpush.api.push.model.Platform;
+import cn.jpush.api.push.model.PushPayload;
+import cn.jpush.api.push.model.audience.Audience;
+import cn.jpush.api.push.model.notification.IosNotification;
+import cn.jpush.api.push.model.notification.Notification;
+
+/**
+ * @ClassName: CommonService
+ * @Description: (通用Service)
+ * @author ZhaoXu
+ * @date 2015年7月18日 下午10:13:58
+ * @version V1.0
+ */
+@Service("commonService")
+public class CommonService extends BaseService {
+	private static final long serialVersionUID = 1L;
+	@Resource
+	private CommonDao commonDao;
+	@Autowired
+	private CodeService codeService;
+	@Autowired
+	private ConfigInfo configInfo;
+	@Autowired
+	private RedisClient redisClient;
+	@Autowired
+	private CacheInfo cacheInfo;
+
+	// 短信模板
+	private static final String CODE_CONTENT = "【插坐学院】您的验证码是#code#,请在10分钟内使用。";
+	
+	public WebJobInfo getWebJobInfo(Long id){
+		WebJobInfo info =  commonDao.getWebJobInfo(id);
+		info.setAvatar(appenUrl(info.getAvatar()));
+		info.setCover(appenUrl(info.getCover()));
+		return info;
+	}
+	
+	public List<WebJobInfo> getWebJobList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<WebJobInfo> infos = commonDao.getWebJobList(par.getMap());
+		infos.forEach(info -> {
+			info.setAvatar(this.appenUrl(info.getAvatar()));
+			info.setCover(this.appenUrl(info.getCover()));
+		});
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表
+	 * @param 当前查询页数 page
+	 * @return
+	 */
+	public List<QuestionListInfo> getQuestionList(Page page){
+		Params par = new Params(page.getNowPage());
+		List<QuestionListInfo> infos = commonDao.getQuestionList(par.getMap());
+        // 截取时间字符串
+		infos.forEach(info -> {
+			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+			}
+			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+			}		
+			});
+		return infos;
+	}
+	
+	/**
+	 * 查询试题列表的子目录标题
+	 * @param  父级标题 id
+	 * @return 子标题目录
+	 */
+	public List<QuestionListInfo> getQuestionChildList(Long id){
+		List<QuestionListInfo> infos = commonDao.getQuestionChildList(id);
+		 // 截取时间字符串
+		infos.forEach(info -> {
+			if(info.getCreateAt() != "" && !("").equals(info.getCreateAt())){
+				info.setCreateAt(info.getCreateAt().substring(0, 19));;
+			}
+			if(info.getUpdateAt() != "" && !("").equals(info.getUpdateAt())){
+				info.setUpdateAt(info.getUpdateAt().substring(0, 19));;
+			}		
+			});
+		return infos;
+	}
+	
+	/**
+	 * 根据二级标题id 获取所有问题
+	 * @param id
+	 * @return
+	 */
+	@SuppressWarnings("unchecked")
+	public List<Question> getChildQuestionsById(int id) {
+		List<Question> list = null;
+		String questionKey = "questionKey--code--1";
+		if (redisClient.isExist(questionKey)) {
+			list = (ArrayList<Question>) redisClient.getObject(questionKey);
+		} else {
+			list = commonDao.getChildQuestionsById(id);
+
+ 			redisClient.setObject(questionKey, list, cacheInfo.getRedisCacheLevel6());
+		}
+		return list;
+	}
+	
+	
+	public String createSign(SortedMap<String, String> parameters, String key) {
+		StringBuffer sb = new StringBuffer();
+		Set<Entry<String, String>> es = parameters.entrySet();
+		Iterator<Entry<String, String>> it = es.iterator();
+		while (it.hasNext()) {
+			Map.Entry<String, String> entry = it.next();
+			String k = (String) entry.getKey();
+			String v = (String) entry.getValue();
+			if (null != v && !"".equals(v) && !"sign".equals(k) && !"key".equals(k)) {
+				sb.append(k + "=" + v + "&");
+			}
+		}
+		sb.append("key=" + key);// xxxxxx换成你的API密钥
+		String sign = PasswdEncryption.MD5Encode(sb.toString()).toUpperCase();
+		return sign;
+	}
+
+	// ------
+	public CourseWebInfo findCourseWebInfo(Long id) {
+		return commonDao.findCourseWebInfo(id);
+	}
+
+	public boolean updateCourseWebInfo(CourseWebInfo info) {
+		return commonDao.updateCourseWebInfo(info) > 0;
+	}
+
+	public boolean updateWebCourseClickNumber(Long id) {
+		return commonDao.updateWebCourseClickNumber(id) > 0;
+	}
+
+	public List<OnlineCourseCommentInfo> findOnlineCourseCommentLimit50(Long courseId) {
+		List<OnlineCourseCommentInfo> list = commonDao.findOnlineCourseCommentLimit50(courseId);
+		list.forEach(info -> {
+			info.setAvatar(appenUrl(info.getAvatar()));
+		});
+		return list;
+	}
+	// ------
+
+	// 客户端枚举
+	public enum ClientEnum {
+		ChaZuo, GuGu
+	}
+
+	/**
+	 * @Title: getAccessToken
+	 * @Description: (获得微信Token)
+	 * @return
+	 */
+	public String getAccessToken(String appid, String secret) {
+		String token = "";
+		try {
+			HttpClient httpclient = HttpClients.createDefault();
+			String tokenKey = cacheInfo.getCacheWeixinTokenKey() + appid + secret;
+			if (redisClient.isExist(tokenKey)) {
+				token = redisClient.getObject(tokenKey).toString();
+			} else {
+				StringBuffer urlStr = new StringBuffer("https://api.weixin.qq.com/cgi-bin/token?");
+				urlStr.append("grant_type=").append("client_credential").append("&appid=").append(appid)
+						.append("&secret=").append(secret);
+
+				HttpGet get = new HttpGet(urlStr.toString());
+				get.setHeader("Accept", "application/json");
+				get.setHeader("Content-Type", "application/json;charset=utf-8");
+
+				HttpResponse response = httpclient.execute(get);
+				HttpEntity entity = response.getEntity();
+				String result = "";
+				if (entity != null) {
+					result = EntityUtils.toString(entity, "UTF-8");
+					System.out.println(result);
+				}
+				JSONObject obj = JSONObject.parseObject(result);
+				token = obj.get("access_token").toString();
+
+				redisClient.setObject(tokenKey, token, 7200);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return token;
+	}
+
+	/**
+	 * @Title: sendMessage
+	 * @Description: (发送短信)
+	 * @param mobile
+	 *            手机号
+	 * @throws UnsupportedEncodingException
+	 */
+	public void sendMessage(String mobile) throws UnsupportedEncodingException {
+		String code = CodeUtils.getCode(4);
+		codeService.saveCode(mobile, code);
+		// 调用发送短信接口
+		// String username = configInfo.getDuanxinbaoUserName();// 短信宝帐户名
+		// String pass = new MD5().Md5(configInfo.getDuanxinbaoPassword());//
+		// 短信宝帐户密码，md5加密后的字符串
+		// String phone = mobile;// 电话号码
+
+		String content = java.net.URLEncoder.encode(CODE_CONTENT.replace("#code#", code), "UTF-8");// 发送内容
+		content.replaceAll(" ", "");
+		send(mobile, content);
+		// HttpSend send = new HttpSend(
+		// "http://www.smsbao.com/sms?u=" + username + "&p=" + pass + "&m=" +
+		// phone + "&c=" + content);
+		// try {
+		// send.send();
+		// } catch (Exception e) {
+		// e.printStackTrace();
+		// }
+		// String result = jsonReqClient.templateSMS(mobile, code);
+	}
+
+	/**
+	 * @Title: send
+	 * @Description: (发送短信)
+	 * @param mobile
+	 * @param content
+	 */
+	public void send(String mobile, String content) {
+		String username = configInfo.getDuanxinbaoUserName();// 短信宝帐户名
+		String pass = new MD5().Md5(configInfo.getDuanxinbaoPassword());// 短信宝帐户密码，md5加密后的字符串
+		String phone = mobile;// 电话号码
+		content.replaceAll(" ", "");
+		HttpSend send = new HttpSend(
+				"http://www.smsbao.com/sms?u=" + username + "&p=" + pass + "&m=" + phone + "&c=" + content);
+		try {
+			send.send();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+//		String username = "jiekou-clcs-09";// 蓝创
+//		String pass = new MD5().Md5("Txb778899");// 短信宝帐户密码，md5加密后的字符串
+//		String phone = mobile;// 电话号码
+//		String title ="true";
+//		content.replaceAll(" ", "");
+//		HttpSend send = new HttpSend(
+//				"http://222.73.117.156/msg/HttpBatchSendSM?account=" + username + "&pswd=" + pass + "&mobile=" + phone + "&msg=" + content+"&needstatus="+title);
+//		try {
+//			send.send();
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+	}
+
+	/**
+	 * @Title: getRandomNickName
+	 * @Description: (获得随机名称(匿名时使用))
+	 * @return
+	 * @author ZhaoXu
+	 */
+	public String getRandomNickName(Long id) {
+		List<String> list = new ArrayList<>();
+		list.add("王大锤");
+		list.add("小明");
+		list.add("葫芦娃");
+		list.add("阿童木");
+		list.add("柯南");
+		list.add("流川枫");
+		list.add("蜡笔小新");
+		list.add("灰太狼");
+		list.add("都教授");
+		list.add("千颂伊");
+		list.add("阿衰");
+		list.add("甄嬛");
+		list.add("李莫愁");
+		list.add("令狐冲");
+		list.add("忍者神龟");
+		list.add("加菲猫");
+		list.add("孙悟空");
+		list.add("麦兜");
+		list.add("超人");
+		Integer num = (int) (id % list.size());
+		return list.get(num);
+	}
+
+	/**
+	 * @Title: getRandomAvatar
+	 * @Description: (获得随机头像)
+	 * @return
+	 * @author ZhaoXu
+	 */
+	public String getRandomAvatar() {
+		return (CodeUtils.getRandomInt(8) + 1) + ".png";
+	}
+
+	/**
+	 * @Title: checkConetent
+	 * @Description: (验证内容是否合法)
+	 * @param str
+	 * @return
+	 * @author ZhaoXu
+	 */
+	public boolean checkConetent(String str) {
+		List<String> list = Arrays.asList("习近平", "李克强", "张德江", "俞正声", "俞正声", "刘云山", "王岐山", "张高丽", "毛泽东");
+		for (String s : list) {
+			if (str.contains(s)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * @Title: findMaxAppVersion
+	 * @Description: (查询最新版本)
+	 * @param client
+	 * @return
+	 */
+	public Version findMaxAppVersion(String client) {
+		return commonDao.findAppVersionMax(client);
+	}
+
+	/**
+	 * @Title: findNowAppVersion
+	 * @Description: (查询当前版本信息)
+	 * @param client
+	 * @param version
+	 * @return
+	 */
+	public Version findNowAppVersion(String client, String version) {
+		Params params = new Params();
+		params.putData("client", client);
+		params.putData("version", version);
+
+		return commonDao.findAppVersionByMap(params.getMap());
+	}
+
+	/**
+	 * @Title: appenUrl
+	 * @Description: (拼接路径)
+	 * @param path
+	 *            待拼接路径
+	 * @return
+	 * @author ZhaoXu
+	 */
+	public String appenUrl(String path) {
+		if (StringUtils.isNullOrEmpty(path)) {
+			return "";
+		}
+		if (path.trim().startsWith("http:") || path.trim().startsWith("https:")) {
+			return path;
+		}
+
+		if (path.trim().startsWith("rtmp://")) {
+			return path;
+		}
+
+		String url = configInfo.getImageUrl();
+		if (url.endsWith("/") && path.startsWith("/")) {
+			return configInfo.getImageUrl() + path.substring(1);
+		}
+		if (!url.endsWith("/") && !path.startsWith("/")) {
+			return configInfo.getImageUrl() + "/" + path;
+		}
+		return configInfo.getImageUrl() + path;
+	}
+
+	/**
+	 * @Title: findWebOfflineCourseInfo
+	 * @Description: (查询线下课程信息)
+	 * @param courseId
+	 * @return
+	 */
+	public WebOfflineCourseInfo findWebOfflineCourseInfo(Long courseId) {
+		return commonDao.findWebCourseOfflineInfo(courseId);
+	}
+
+	public void updateWebOrderFelicitate(String code) {
+		commonDao.updateWebOrderFelicitate(code);
+	}
+
+	public int findFelicitateCount(String code) {
+		return commonDao.findFelicitateCount(code);
+	}
+
+	/**
+	 * @Title: pushIOSMessage
+	 * @Description: (推送IOS客户端)
+	 * @param client
+	 *            客户端
+	 * @param alert
+	 *            提示信息
+	 * @param alias
+	 *            目标别名
+	 */
+	public void pushIOSMessage(ClientEnum client, String alert, String alias) {
+		JPushClient jpushClient = getPushClient(client);
+
+		PushPayload payload = PushPayload.newBuilder().setPlatform(Platform.ios()).setAudience(Audience.alias(alias))
+				.setNotification(Notification.newBuilder()
+						.addPlatformNotification(IosNotification.newBuilder().setAlert(alert).setBadge(0)
+								.setSound("happy").addExtra("which", "jpush").build())
+						.build())
+				.setMessage(Message.content(""))
+				.setOptions(Options.newBuilder().setApnsProduction(!configInfo.getProjectTest()).build()).build();
+		try {
+			PushResult result = jpushClient.sendPush(payload);
+			System.out.println(result);
+		} catch (APIConnectionException e) {
+			e.printStackTrace();
+		} catch (APIRequestException e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * @Title: getPushClient
+	 * @Description: (根据类型获得推送客户端)
+	 * @param type
+	 *            目标客户端类型
+	 * @return
+	 */
+	private JPushClient getPushClient(ClientEnum type) {
+		if (type == ClientEnum.ChaZuo) {
+			return new JPushClient(configInfo.getJpushChaZuoSecret(), configInfo.getJpushChaZuoAppKey(), 3);
+		} else {
+			return new JPushClient(configInfo.getJpushGuGuSecret(), configInfo.getJpushGuGuAppKey(), 3);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	public List<Question> findAllQuestion() {
+		List<Question> list = null;
+		String questionKey = "questionKey--code--1";
+		if (redisClient.isExist(questionKey)) {
+			list = (ArrayList<Question>) redisClient.getObject(questionKey);
+		} else {
+			list = commonDao.findAllQuestion();
+			redisClient.setObject(questionKey, list, cacheInfo.getRedisCacheLevel6());
+		}
+		return list;
+	}
+	@SuppressWarnings("unchecked")
+	public List<Question> findAllQuestionByType(int type) {
+		List<Question> list = null;
+		String questionKey = "questionKey--code--1";
+		if (redisClient.isExist(questionKey)) {
+			list = (ArrayList<Question>) redisClient.getObject(questionKey);
+		} else {
+			list = commonDao.findAllQuestionByType(type);
+			redisClient.setObject(questionKey, list, cacheInfo.getRedisCacheLevel6());
+		}
+		return list;
+	}
+
+	/**
+	 * @Title: updateWebOrderFelicitates
+	 * @Description: (祝贺)
+	 * @param type
+	 * @param id
+	 */
+	public void updateWebOrderFelicitates(Integer type, Long id) {
+		if (type == 1) {
+			commonDao.updateWebOrderFelicitates(id);
+		} else {
+			commonDao.updateWebCrowdFelicitates(id);
+		}
+	}
+
+	public void saveTicket(Ticket ticket) {
+		commonDao.saveTicket(ticket);
+	}
+	
+	public void saveScore(Ticket ticket) {
+		commonDao.saveScore(ticket);
+	}
+	
+	public void saveBusinessScore(BusinessTicket ticket) {
+		commonDao.saveBusinessScore(ticket);
+	}
+	public void updateTicketFavour(Long id) {
+		commonDao.updateTicketFavour(id);
+	}
+
+	public Long findHaveTicket(String unionId) {
+		return commonDao.findHaveTicket(unionId);
+	}
+	public Long findIfHaveTicket(Ticket ticket) {
+		return commonDao.findIfHaveTicket(ticket);
+	}
+
+	public void updateTicketStatus(Params params) {
+		commonDao.updateTicketStatus(params.getMap());
+	}
+
+	public Ticket findTicket(Long id) {
+		return commonDao.findTicket(id);
+	}
+
+	@Deprecated
+	public List<Images> findAllImage() {
+		List<Images> imgs = commonDao.findAllImages();
+		imgs.forEach(info -> {
+			info.setImageUrl(appenUrl(info.getImageUrl()));
+		});
+		return imgs;
+	}
+	
+	public List<Images> findAllImageV2(int type) {
+		List<Images> imgs = commonDao.findAllImagesV2(type);
+		imgs.forEach(info -> {
+			info.setImageUrl(appenUrl(info.getImageUrl()));
+		});
+		return imgs;
+	}
+	
+	
+	public UserInfo findUserInfoByUnionId(String unionId){
+		return commonDao.findUserInfoByUnionId(unionId);
+	}
+	
+	public String findQRCode(Long id){
+		String url = commonDao.getQRCodeURL(id);
+		return appenUrl(url);
+	}
+	
+	public int findTicketNo(Ticket ticket){
+		return commonDao.findTicketNo(ticket);
+	}
+	
+	public int findTicketCount(Ticket ticket){
+		return commonDao.findTicketCount(ticket);
+	}
+	
+	public String findUnionIdById(Long id){
+		return commonDao.findUnionIdById(id);
+	}
+	
+	public int findParentIdById(Long id){
+		return commonDao.findParentIdById(id);
+	}
+	
+	public Long findScoreMaxByParentId(int parentId){
+		return commonDao.findScoreMaxByParentId(parentId);
+	}
+	
+	public Long findScoreMinByParentId(int parentId){
+		return commonDao.findScoreMinByParentId(parentId);
+	}
+	
+	/**
+	 * @Title: findBusinessMaxAppVersion
+	 * @Description: (查询最新版本)
+	 * @param client
+	 * @return
+	 */
+	public BusinessVersion findBusinessMaxAppVersion(String client) {
+		return commonDao.findBusinessAppVersionMax(client);
+	}
+
+	/**
+	 * @Title: findNowBusinessAppVersion
+	 * @Description: (查询当前版本信息)
+	 * @param client
+	 * @param version
+	 * @return
+	 */
+	public BusinessVersion findNowBusinessAppVersion(String client, String version) {
+		Params params = new Params();
+		params.putData("client", client);
+		params.putData("version", version);
+
+		return commonDao.findBusinessAppVersionByMap(params.getMap());
+	}
+}

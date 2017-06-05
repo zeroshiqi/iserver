@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.CodeDao">
+	
+	<!-- 保存验证码 -->
+	<insert id="saveCode" parameterType="cn.ichazuo.model.table.Code">
+		insert into t_code(code,mobile,create_at) values(#{code},#{mobile},now())
+	</insert>
+	
+	<!-- 更新验证码状态 -->
+	<update id="updateCode" parameterType="cn.ichazuo.model.table.Code">
+		update t_code set status = 0, update_at = now(), version = version + 1 where id=#{id} and version = #{version}
+	</update>
+	
+	<!-- 根据验证码和手机号查询验证码对象 -->
+	<select id="findCodeByParams" parameterType="java.util.Map" resultType="cn.ichazuo.model.table.Code">
+		select id,code,mobile,version from t_code where code = #{code} and mobile = #{mobile} and status = 1 order by create_at desc limit 1
+	</select>
+</mapper>

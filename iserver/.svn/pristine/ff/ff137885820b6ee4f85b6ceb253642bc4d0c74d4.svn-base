@@ -1,0 +1,251 @@
+<%@ page language="java" contentType="text/html; charset=utf-8"
+	pageEncoding="utf-8"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>权限管理</title>
+<%@include file="/link/link.jsp"%>
+</head>
+<body class="easyui-layout">
+	<div data-options="region:'center',title:'权限列表',iconCls:'icon-ok'">
+		<table class="easyui-treegrid" id="authorid"
+			data-options="rownumbers:true,toolbar:'#toolbar',fit:true,loadMsg:'正在加载数据...'">
+			<thead>
+				<tr>
+					<th data-options="field:'id',hidden:'true'" width="250">id</th>
+					<th data-options="field:'authorizeName',align:'left'" width="225">权限名称</th>
+					<th data-options="field:'groupId',align:'left',hidden:'true'"
+						width="100">groupId</th>
+					<th data-options="field:'propertiesId',align:'left',hidden:'true'"
+						width="100">propertiesId</th>
+					<th data-options="field:'buttonId',align:'left',hidden:'true'"
+						width="100">buttonId</th>
+					<th data-options="field:'level',align:'left',hidden:'true'"
+						width="100">level</th>
+					<th data-options="field:'index',align:'left',hidden:'true'"
+						width="100">index</th>
+					<th data-options="field:'authorId',align:'left',hidden:'true'"
+						width="100">authorId</th>
+					<th data-options="field:'roleName',align:'left'" width="500">角色</th>
+				</tr>
+			</thead>
+		</table>
+		<div id="toolbar" style="padding: 5px; height: auto">
+			<div style="padding: 5px;">
+				<font>角色：</font> <input id="role" class="easyui-combobox"
+					style="width: 155px" /> <a href="javascript:void(0);"
+					class="easyui-linkbutton" iconCls="icon-reload"
+					onclick="saveAuthorList();">批量授权</a> <a href="javascript:void(0);"
+					class="easyui-linkbutton" iconCls="icon-reload"
+					onclick="cancelSaveList();">批量取消</a> <a href="javascript:void(0);"
+					class="easyui-linkbutton" iconCls="icon-edit"
+					onclick="editAuthor();">编辑</a>
+			</div>
+		</div>
+	</div>
+	<!--权限编辑窗口 -->
+	<div id="authorWindow" class="easyui-window" title="权限信息"
+		data-options="modal:true,minimizable:false,closed:true,iconCls:'icon-edit'"
+		style="width: 400px; height: 320px; padding: 10px;">
+		<div class="easyui-layout" data-options="fit:true">
+			<div data-options="region:'center'" style="padding: 10px;">
+				<form id="form" method="post">
+					<table align="center" width="100%">
+						<tr>
+							<td>权限名称：</td>
+							<td><input type="hidden" name="id" id="aid" /> <input
+								type="hidden" name="groupId" id="gid" /> <input type="hidden"
+								name="propertiesId" id="pid" /> <input type="hidden"
+								name="buttonId" id="bid" /> <input id="authorTitle"
+								name="authorTitle" class="easyui-validatebox" type="text"
+								data-options="required:false" style="width: 255px;" /></td>
+						</tr>
+						<tr>
+							<td>权限角色：</td>
+							<td><textarea id="authorRoleNames" name="roleNames"
+									style="width: 255px; height: 130px" class="easyui-validatebox"></textarea>
+							</td>
+						</tr>
+					</table>
+					<table align="center" width="100%">
+						<tr>
+							<td>角色名称：</td>
+							<td><input id="roleCombox" class="easyui-combobox"
+								style="width: 200px" /> <a href="javascript:void(0);"
+								class="easyui-linkbutton" iconCls="icon-reload"
+								onclick="addRoleName();">添加</a></td>
+						</tr>
+					</table>
+				</form>
+			</div>
+			<div data-options="region:'south',border:false"
+				style="text-align: right; padding: 5px 0 0;">
+				<a href="javascript:void(0)" class="easyui-linkbutton"
+					data-options="iconCls:'icon-save'" onclick="saveAuthor();">保存</a> <a
+					href="javascript:void(0)" class="easyui-linkbutton"
+					data-options="iconCls:'icon-cancel'"
+					onclick="$('#authorWindow').window('close')">取消</a>
+			</div>
+		</div>
+	</div>
+</body>
+<script type="text/javascript">
+
+$(function(){
+	findAllRole();
+});
+
+//批量取消
+function cancelSaveList(){
+	var roleId = $("#role").combobox("getValue");
+	var checkedItems = $('#authorid').datagrid('getChecked');
+	if(checkedItems.length==0){
+		$.messager.alert("系统提示","请选择菜单!","warning");
+		return;
+	}
+	var ids = [];
+	$.each(checkedItems, function(index, item){
+		if(item.level != 0 && item.level != 1){
+			ids.push(item.authorId+",");
+		}
+	});
+	$.getJSON("${app}/admin/json/cancelSaveList?ids="+ids+"&roleId="+roleId, function(data) {
+		if(checkData(data)){
+			findAuthor();
+		}
+	});
+	
+	$('#authorid').datagrid('clearSelections');
+}
+
+//批量授权
+function saveAuthorList(){
+	var roleId = $("#role").combobox("getValue");
+	var checkedItems = $('#authorid').datagrid('getChecked');
+	if(checkedItems.length==0){
+		$.messager.alert("系统提示","请选择菜单!","warning");
+		return;
+	}
+	
+	var ids = [];
+	$.each(checkedItems, function(index, item){
+		if(item.level != 0 && item.level != 1){
+			ids.push(item.id+",");
+		}
+	});
+	$.getJSON("${app}/admin/json/saveAuthorList?ids="+ids+"&roleId="+roleId, function(data) {
+		if(checkData(data)){
+			findAuthor();
+		}
+	});
+	
+	$('#authorid').datagrid('clearSelections');
+}
+//打开编辑权限窗口
+function editAuthor(){
+	var checkedItems = $('#authorid').treegrid('getChecked');
+	var record = $("#authorid").datagrid("getSelected");
+	if (checkedItems.length != 1) {
+		$.messager.alert("系统提示", "请选择一条记录!", "warning");
+		return;
+	}
+	if(record.level == 0 || record.level == 1){
+		$.messager.alert("系统提示", "请选择子节点!", "warning");
+		return;
+	}
+	$.getJSON("${app}/admin/json/findAllRole",function(data){
+		$('#roleCombox').combobox({ 
+			data:data,
+            valueField:'roleName', 
+            textField:'roleName',
+            editable:false,
+            onLoadSuccess: function () { //加载完成后,设置选中第一项
+            	var val = $(this).combobox("getData");
+                for (var item in val[0]) {
+                    if (item == "roleName") {
+                        $(this).combobox("select", val[0][item]);
+                    }
+                }
+            }
+        });   
+	});
+	$('#aid').val(record.authorId);
+	$('#gid').val(record.groupId);
+	$('#pid').val(record.propertiesId);
+	$('#bid').val(record.buttonId);
+	$('#authorRoleNames').val(''+record.roleName);
+	$('#authorTitle').val(''+record.authorizeName);
+	$("#authorTitle").attr('disabled',true);
+	$("#authorWindow").window("open");
+}
+
+//编辑保存权限
+function saveAuthor(){
+	var options ={
+			url:"${app}/admin/json/saveAuthorize",
+			success : function(data) {
+				if(checkData(data)){
+					$("#authorWindow").window("close");
+					findAuthor();
+				}
+			}
+		};
+	$("#form").ajaxSubmit(options);		
+	//清除选中行
+	$('#authorWindow').datagrid('clearSelections');
+}
+
+//查询所有角色
+function findAllRole(){
+	$.getJSON("${app}/admin/json/findAllRole",function(data){
+		$('#role').combobox({ 
+			data:data,
+            valueField:'id', 
+            textField:'roleName',
+            editable:false,
+            onLoadSuccess: function () { //加载完成后,设置选中第一项
+            	var val = $(this).combobox("getData");
+                for (var item in val[0]) {
+                    if (item == "id") {
+                        $(this).combobox("select", val[0][item]);
+                    }
+                }
+                findAuthor();
+            }
+        });   
+	});
+}
+
+//向textbox添加选中的角色名
+function addRoleName(){
+	var names = $('#authorRoleNames').val();
+	var charCode = names.charAt(names.length - 1);
+	if(charCode == ','){
+		$('#authorRoleNames').val(names + $('#roleCombox').combobox('getValue')+",");
+	}else{
+		$('#authorRoleNames').val(names + ',' + $('#roleCombox').combobox('getValue')+",");
+	}
+}
+
+//查找所有菜单
+function findAuthor(){
+	$('#authorid').treegrid({
+		url:'${app}/admin/json/findAllAuthorize',    
+	    idField:'id',    
+	    treeField:'authorizeName',
+	    animate:"true",
+        rownumbers:"true",
+        fitColumns: true, 
+		lines:true,
+		singleSelect : false,//是否单选  
+		selectOnCheck: true,
+		checkOnSelect: true,
+		onLoadError:function(){
+			$.messager.alert("系统提示","加载数据失败！","warning");
+		}
+	});
+	
+}
+</script>
+</html>

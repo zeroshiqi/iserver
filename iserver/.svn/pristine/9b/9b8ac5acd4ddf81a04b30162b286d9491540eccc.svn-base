@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="cn.ichazuo.dao.AuthorizeDao">
+	<!-- 查询全部资源 -->
+	<select id="findAllAuthorize" resultType="cn.ichazuo.model.table.Authorize">
+		select id,type,button_id as buttonId,group_id as groupId,properties_id as propertiesId,role_code as roleCode,version from s_authorize 
+	</select>
+	
+	<!-- 根据ID查询权限 -->
+	<select id="findAuthorizeById" parameterType="java.lang.Long" resultType="cn.ichazuo.model.table.Authorize">
+		select id,type,button_id as buttonId,group_id as groupId,properties_id as propertiesId,role_code as roleCode,version 
+		from s_authorize where 1=1 and id=#{id}
+	</select>
+	
+	<!-- 保存权限 -->
+	<insert id="saveAuthorize" parameterType="cn.ichazuo.model.table.Authorize">
+		insert into s_authorize (type,button_id,group_id,properties_id,role_code,create_at) 
+		values(#{type},#{buttonId},#{groupId},#{propertiesId},#{roleCode},now())
+	</insert>
+	
+	<!-- 修改权限 -->
+	<update id="updateAuthorize" parameterType="cn.ichazuo.model.table.Authorize">
+		update s_authorize set role_code = #{roleCode},version = version + 1,create_at = now()
+		where 1=1 and id = #{id} and version = #{version}
+	</update>
+	
+</mapper>
