@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	elementFormDefault="qualified" attributeFormDefault="unqualified">
+
+	<!-- 最外层元素 -->
+	<xs:element name="resource">
+		<xs:complexType>
+			<xs:sequence maxOccurs="unbounded">
+				<!-- 首元素 -->
+				<xs:element name="group">
+					<xs:complexType>
+						<xs:sequence maxOccurs="unbounded">
+							<xs:element name="properties" type="propertyInfo" />
+						</xs:sequence>
+						<!-- 属性 -->
+						<xs:attribute name="id" type="xs:string" use="required" />
+						<xs:attribute name="name" type="xs:string" use="required" />
+						<xs:attribute name="weight" use="required">
+							<xs:simpleType>
+								<!-- 属性限定 -->
+								<xs:restriction base="xs:integer">
+									<xs:minInclusive value="0" />
+									<xs:maxInclusive value="1000" />
+								</xs:restriction>
+							</xs:simpleType>
+						</xs:attribute>
+					</xs:complexType>
+				</xs:element>
+				<!-- 第二元素 -->
+				<xs:element name="include" minOccurs="0">
+					<xs:complexType>
+						<xs:attribute name="file" type="xs:string" use="required" />
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+
+	<!-- properties元素 -->
+	<xs:complexType name="propertyInfo">
+		<xs:sequence maxOccurs="unbounded">
+			<xs:element name="button" minOccurs="0" type="buttonAttr" />
+		</xs:sequence>
+		<xs:attribute name="id" type="xs:string" use="required" />
+		<xs:attribute name="name" type="xs:string" use="required" />
+		<xs:attribute name="title" type="xs:string" />
+		<xs:attribute name="action" type="xs:string" />
+		<xs:attribute name="showMenu" type="xs:string" />
+		<xs:attribute name="weight" use="required">
+			<xs:simpleType>
+				<!-- 属性限定 -->
+				<xs:restriction base="xs:integer">
+					<xs:minInclusive value="0" />
+					<xs:maxInclusive value="1000" />
+				</xs:restriction>
+			</xs:simpleType>
+		</xs:attribute>
+	</xs:complexType>
+
+	<!-- button属性 -->
+	<xs:complexType name="buttonAttr">
+		<xs:attribute name="name" type="xs:string" use="required" />
+		<xs:attribute name="id" type="xs:string" use="required" />
+		<xs:attribute name="icon" type="xs:string" use="required" />
+		<xs:attribute name="function" type="xs:string" use="required" />
+	</xs:complexType>
+
+</xs:schema>

@@ -17,7 +17,7 @@
 			<attribute name="org.eclipse.jst.component.dependency" value="/WEB-INF/lib"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="/Users/ANNE/Desktop/work/iserver/lib/alipay-sdk-java20170307171631.jar">
+	<classpathentry kind="lib" path="/Users/ANNE/Desktop/hh/gitrepo_iserver/lib/alipay-sdk-java20170307171631.jar">
 		<attributes>
 			<attribute name="org.eclipse.jst.component.dependency" value="/WEB-INF/lib"/>
 		</attributes>

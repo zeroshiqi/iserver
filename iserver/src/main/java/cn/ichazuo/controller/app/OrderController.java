@@ -4218,6 +4218,22 @@ public class OrderController extends BaseController {
 				if(offline.getDiscount() == 100){
 					//不打折
 					price = NumberUtils.mul(offline.getPrice(), number); // 计算价格
+					if(courseId==2460){
+						// 验证用户是否存在
+						Employee employee = memberService.findBusinessLoginMemberByMobile1(mobile);
+						if (employee != null) {
+							//查询是否该用户为年费会员用户
+							List<MemberRecord> recordList = businessService.findMemberRecordList(employee.getId().toString());
+							if(recordList.size()>0){
+								price = 389.00;
+							}else{
+								List<MemberRecord> recordList1 = businessService.findMemberRecordListByEmployeeId(employee.getId().toString());
+								if(recordList1.size()>0){
+									price = 389.00;
+								}
+							}
+						}
+				}
 					//如果课程名称包含“好多课”，则该课程为好多课会员购买课程
 					if(b>=0 || ("2").equals(offline.getNewtype()) || ("5").equals(offline.getNewtype())){
 						logger.error("生成订单时判断出课程名称中包含‘系列课’");

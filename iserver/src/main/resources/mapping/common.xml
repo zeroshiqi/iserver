@@ -588,7 +588,7 @@
 	<!-- 根据学员ID查询学员是否有年费会员信息存在  -->
 	<select id="findMemberRecordListByEmployeeId" parameterType="java.util.Map"
 		resultType="cn.ichazuo.model.table.MemberRecord">
-		select id,employee_id as employeeId,catalog_id as catalogId,type,create_at as createAt,expiry_date as expiryDate,end_date as endDate,course_id as courseId from t_business_member_record where employee_id = #{employeeId} and type =1 and status=1 order by id desc
+		select id,employee_id as employeeId,catalog_id as catalogId,type,create_at as createAt,expiry_date as expiryDate,end_date as endDate,course_id as courseId from t_business_member_record where employee_id = #{employeeId} and (type =1 or type=2) and status=1 and (gain_way=0 or gain_way=2 or gain_way=5) order by id desc
 	</select>
 	<!-- 根据学员ID查询学员是否有年费会员信息存在  -->
 	<select id="findMemberRecordListByEmployeeId1" parameterType="java.util.Map"
